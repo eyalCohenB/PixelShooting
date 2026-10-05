@@ -117,6 +117,10 @@ The assignment was built with Claude Code (Claude Opus 5.5) as a pair programmer
       - The cell count included empty cells.
       - `GetCell` used `y + x` instead of `y * Width + x`.
     - **Verification:** a randomized test compared it with a brute-force scan over 42k queries, plus an allocation check (0 bytes).
+    - **Board view:**
+      - I chose pooled sprites over a single texture. Claude wrote `BoardView` and a `BoardTester` and explained them.
+      - Pop uses no callback, to avoid closure allocations.
+      - I play-tested it and tuned the area size to 7.8 so cells sit inside the sand.
 
 <!-- Template for each part:
 ### Part N: <title> (<date>)

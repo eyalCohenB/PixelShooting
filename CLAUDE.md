@@ -226,6 +226,14 @@ _Proposed for Part 1, not yet confirmed by the user. Logic is plain C#, and the 
   - The user started `Reset` and `GetCell`. Claude finished it on 2026-10-05 at the user's request.
   - It also has a public `LineCount(side)`.
   - `LevelData.CopyCellsTo(sbyte[])` was added so `Reset` can copy without allocating.
+- **Point 4, `BoardView`** (`Scripts/View/BoardView.cs`, on `BoardArea`; written by Claude on 2026-10-05):
+  - One pooled `SpriteRenderer` per cell: a white Square sprite tinted with the palette color, on the `Board` sorting layer.
+  - `cellSize = min(areaW/W, areaH/H)`, with the area set to **7.8×7.8** in the scene (the user tuned it from 8.4). The grid is centered, and each sprite fills 90% of its slot.
+  - `cellRenderers[y*W+x]` gives O(1) lookup. The pool only grows when a level needs more cells.
+  - `Build(board, level)` runs after `Reset`.
+  - `Pop(x,y)` is a DOTween scale to 0 with **no** `OnComplete`, so no closure. The next `Build` hides the cell.
+  - `GetCellWorldPosition(x,y)` gives bullet targets and firing points.
+  - `BoardTester` is a temporary helper: keys 1/2/3 load a level, Space fires a random valid shot, R restarts.
 
 ## Animation (Part 2, stage 1, decided 2026-10-05)
 - **DOTween** handles one-off A→B animations:
