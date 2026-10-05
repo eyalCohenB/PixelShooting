@@ -1,0 +1,17 @@
+{
+  "width": 6,
+  "height": 6,
+  "palette": ["#E53935", "#1E88E5", "#FDD835"],
+  "cells": [
+    -1,  0,  0,  0,  0, -1,
+     0,  0,  2,  2,  0,  0,
+     0,  2,  2,  2,  2,  0,
+     1,  1,  2,  2,  1,  1,
+     1,  1,  1,  1,  1,  1,
+    -1,  1,  1,  1,  1, -1
+  ],
+  "queues": [
+    { "shooters": [ { "color": 0, "bullets": 5 }, { "color": 1, "bullets": 7 }, { "color": 2, "bullets": 4 } ] },
+    { "shooters": [ { "color": 1, "bullets": 7 }, { "color": 0, "bullets": 5 }, { "color": 2, "bullets": 4 } ] }
+  ]
+}

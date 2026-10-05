@@ -1,0 +1,15 @@
+{
+  "width": 4,
+  "height": 4,
+  "palette": ["#E53935", "#1E88E5"],
+  "cells": [
+     0,  0,  1,  1,
+     0,  0,  1,  1,
+     0,  0,  1,  1,
+     0,  0,  1,  1
+  ],
+  "queues": [
+    { "shooters": [ { "color": 0, "bullets": 3 }, { "color": 1, "bullets": 4 } ] },
+    { "shooters": [ { "color": 1, "bullets": 4 }, { "color": 0, "bullets": 4 } ] }
+  ]
+}

@@ -3,8 +3,8 @@
 _Last updated: 2026-10-05_
 
 ## Current step
-**Part 2: Core Gameplay, stage 2 (level data).** Claude has presented the JSON schema decisions, and the user is choosing.
-- **Git:** `5ca84a3` Scene setup (Part 1), `f9466c8` Add DOTween (stage 1). Commit after each finished stage.
+**Part 2: Core Gameplay. Stage 2 (level data) is done and committed (2026-10-05). Next: stage 3 (Board), which the user writes.**
+- **Git:** `5ca84a3` Scene setup (Part 1), `f9466c8` Add DOTween (stage 1). Commit after each finished stage. Stage 2 commit: "Level data loading and validation".
 
 ## Done
 - [x] Setup: rubric, documentation rules, asset inventory, learning mode
@@ -21,7 +21,7 @@ _Last updated: 2026-10-05_
 ## Part 2 stage plan (one stage at a time: design → decide → implement → review → docs)
 - [x] **0. Spec breakdown:** questions answered on 2026-10-05
 - [x] **1. Tweening:** **DOTween** chosen, installed (modules: UI, TMP, Sprite), and the smoke test passed. Install it, run Setup, then configure Init (recycling, capacity, safe mode). Riding the conveyor and bullet flight are **not** tweens; the models drive them.
-- [ ] **2. Level data:** JSON schema, DTO, loader, validation (bullets = cells), 2–3 sample levels
+- [x] **2. Level data:** JSON schema, DTO, loader, validation (bullets = cells), 2–3 sample levels
 - [ ] **3. Board:** `BoardModel` (grid, exposed-cell queries) and `BoardView` (cells scaled to fill `BoardArea`)
 - [ ] **4. Queue:** `QueueModel` (only the top shooter is selectable, the rest shift up) and its view and input
 - [ ] **5. Conveyor:** path, capacity 5, no overlap, lap tracking, the "available" label, skateboards

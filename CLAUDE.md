@@ -177,6 +177,38 @@ _Proposed for Part 1, not yet confirmed by the user. Logic is plain C#, and the 
 - **When:** the same change check in `LateUpdate` as `CameraFitter`. Nothing is allocated.
 - **Canvas:** Screen Space - Overlay. Canvas Scaler set to Scale With Screen Size, reference resolution 1125×2436, Match 0.5.
 
+## Level data (Part 2, stage 2, decided 2026-10-05)
+- **JSON schema** (read with `JsonUtility`):
+  - `width` and `height`.
+  - `palette`: hex strings.
+  - `cells`: a flat `int[]` of size `width*height`. Each value is a palette index, and **-1 means empty**. The **top row comes first**, as it looks on screen; the loader flips it, because Unity's y axis points up.
+  - `queues`: `[{ "shooters": [{ "color", "bullets" }] }]`. The order of `queues` is the left-to-right column order. In each column, the **first shooter is the top one**, the one you can select. The column count is `queues.length`.
+- **Storage:**
+  - `Assets/_Project/Levels/*.json` files are TextAssets.
+  - They're referenced from a `LevelCatalog` ScriptableObject, whose list order is the level order.
+  - No `Resources` folder and no string paths.
+- **Pipeline:** DTO (`[Serializable]`, mirrors the JSON) → Loader + Validator (Core, pure C#) → `LevelData` (a `byte[]`/`sbyte` grid, a `Color32[]` palette, shooter specs per column). The rest of the game never sees the DTO.
+- **The validator rejects a level** with a clear error naming the level and the problem when any of these fail:
+  - dimensions > 0, and the cell count = w*h
+  - every cell is -1 or a valid index, and every hex string parses
+  - there's at least 1 queue
+  - each shooter has a valid color and bullets > 0
+  - **for every color, the bullets equal the cells** (which also covers the totals)
+- **It warns about:** unused palette colors and empty columns.
+- **Files** (`Scripts/Core/Levels/`, namespace `PixelShooting.Core.Levels`):
+  - Written by Claude: `LevelDto`, `ShooterSpec` (readonly struct), `LevelData` (immutable; accessors `GetCell`, `GetColor`, `GetQueueLength`, `GetShooter`), `LevelLoader.TryLoad(json, name, out level, errors, warnings)`, and `LevelCatalog` (ScriptableObject, menu `PixelShooting/Level Catalog`).
+  - **`LevelValidator.Validate` is the user's to implement.**
+- **`LevelData` model:**
+  - `sbyte[]` cells, row-major, **y = 0 is the bottom row**.
+  - `Color32[]` palette, at most 127 colors.
+  - `ShooterSpec[][]` queues, where `[column][0]` is the top shooter.
+  - Live counts are not stored here; `BoardModel` keeps its own.
+- **Sample levels** (`Assets/_Project/Levels/`):
+  - `Level01`: 4×4, 2 colors.
+  - `Level02`: 6×6 with empty corners, 3 colors.
+  - `Level03`: 10×10 concentric rings, 4 colors, 3 queues.
+  - `Invalid_BulletMismatch`: red is 7 bullets against 8 cells. It **must** be rejected.
+
 ## Animation (Part 2, stage 1, decided 2026-10-05)
 - **DOTween** handles one-off A→B animations:
   - queue shift-up
