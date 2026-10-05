@@ -109,6 +109,15 @@ The assignment was built with Claude Code (Claude Opus 5.5) as a pair programmer
 - **What I reviewed / changed / rejected:** _(fill in)_
 - **Verification:** _(fill in)_
 
+  - **Stage 3, board model:**
+    - I picked the options (A1, B1, C1, and the lazy depth approach).
+    - I started `Reset`; Claude finished the class while I was on a break. Claude explained the bugs in my part:
+      - `LevelData` has no public `Cells`.
+      - `Clone()` allocates on every restart.
+      - The cell count included empty cells.
+      - `GetCell` used `y + x` instead of `y * Width + x`.
+    - **Verification:** a randomized test compared it with a brute-force scan over 42k queries, plus an allocation check (0 bytes).
+
 <!-- Template for each part:
 ### Part N: <title> (<date>)
 - **What I asked:**

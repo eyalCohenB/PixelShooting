@@ -41,6 +41,12 @@ namespace PixelShooting.Core.Levels
 
         public sbyte GetCell(int x, int y) => cells[y * Width + x];
 
+        /// <summary>
+        /// Copies all cells (same layout: row-major, y = 0 at the bottom) into a caller-owned
+        /// buffer of length Width * Height. Lets models reset without allocating.
+        /// </summary>
+        public void CopyCellsTo(sbyte[] destination) => System.Array.Copy(cells, destination, cells.Length);
+
         public Color32 GetColor(int colorIndex) => palette[colorIndex];
 
         public int GetQueueLength(int column) => queues[column].Length;

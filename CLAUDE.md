@@ -209,6 +209,24 @@ _Proposed for Part 1, not yet confirmed by the user. Logic is plain C#, and the 
   - `Level03`: 10×10 concentric rings, 4 colors, 3 queues.
   - `Invalid_BulletMismatch`: red is 7 bullets against 8 cells. It **must** be rejected.
 
+## Board model (Part 2, stage 3; the user implements it)
+- **Point 1, decided 2026-10-05.** `BoardModel` is pure C# (no UnityEngine). It's built from `LevelData` and has the same coordinates: x right, y up, (0,0) at the bottom-left.
+  - **A1, cell state:** a single `sbyte[]` of colors, copied from the level. **Firing clears the cell to `EmptyCell` immediately.** That logical removal is the reservation, so there's no separate "targeted" state. The view removes the sprite later, when the bullet lands.
+  - **B1, counting:** only `RemainingCells` (an int, decremented on fire), and `IsCleared => RemainingCells == 0` in O(1). There are no per-color counts.
+    - ⚠️ `IsCleared` becomes true when the **last shot is fired**, not when it lands. The win flow (stage 8) must wait for bullets in flight and pop animations.
+  - **C1, notifications:** no events. Queries return values. The shooting system gets the x,y of the taken cell, fires the bullet, and tells `BoardView` to pop it on hit.
+  - **`Reset(LevelData)`** reuses arrays when the size matches. Restarting allocates nothing.
+- **Point 2, exposed cells (recommended options; the user said "move on" on 2026-10-05):**
+  - Each side (`enum BoardSide : byte { Bottom, Right, Top, Left }`) and each line stores a **depth**: how many steps in from that side the search starts. Rule: every cell before the depth is empty.
+  - `TryGetExposed(side, line, out x, out y)` steps past empty cells **lazily**, stores the new depth, and returns false if it runs off the board. It only looks; it doesn't remove anything.
+  - This covers holes, cells removed from other sides, and empty lines. The total work over a level is ≤ 4·W·H, so each query is O(1) amortized.
+  - Depth to x,y: Bottom (line, d), Top (line, H-1-d), Left (d, line), Right (W-1-d, line).
+- **Point 3, firing:** `TryFire(side, line, color, out x, out y)` looks up the exposed cell. If the color matches, it clears the cell and decrements `RemainingCells`. Otherwise it returns false (blocked or empty).
+- **Implementation:** `Scripts/Core/Board/BoardModel.cs`.
+  - The user started `Reset` and `GetCell`. Claude finished it on 2026-10-05 at the user's request.
+  - It also has a public `LineCount(side)`.
+  - `LevelData.CopyCellsTo(sbyte[])` was added so `Reset` can copy without allocating.
+
 ## Animation (Part 2, stage 1, decided 2026-10-05)
 - **DOTween** handles one-off A→B animations:
   - queue shift-up

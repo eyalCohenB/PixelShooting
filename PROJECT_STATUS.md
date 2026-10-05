@@ -3,7 +3,16 @@
 _Last updated: 2026-10-05_
 
 ## Current step
-**Part 2: Core Gameplay. Stage 2 (level data) is done and committed (2026-10-05). Next: stage 3 (Board), which the user writes.**
+**Part 2: Core Gameplay. Stage 2 (level data) is done and committed (2026-10-05). Now: stage 3 (Board), which the user writes.**
+- Points 1–3 are decided, and `BoardModel` is written (finished by Claude).
+- Tested in the .NET harness, 17 checks, all passing:
+  - holes
+  - the worked example
+  - cells removed from another side
+  - reset
+  - 42k random queries compared with a brute-force scan until the board clears
+  - 0 bytes allocated by queries and by a same-size `Reset`
+- **Next:** the user checks it compiles in Unity, then point 4 (`BoardView`).
 - **Git:** `5ca84a3` Scene setup (Part 1), `f9466c8` Add DOTween (stage 1). Commit after each finished stage. Stage 2 commit: "Level data loading and validation".
 
 ## Done
