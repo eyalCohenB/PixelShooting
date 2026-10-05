@@ -3,10 +3,8 @@
 _Last updated: 2026-10-05_
 
 ## Current step
-**Part 2: Core Gameplay. Stage 1 is done; next is stage 2 (level data).**
-- DOTween is installed and the smoke test passed (2026-10-05).
-- Before committing, the user must remove the test shooter (a prefab instance with `smokeTest`) from `Game.unity` and delete `Scripts/smokeTest.cs`.
-- **Commits pending:** git `user.name` is now set ("Eyal"). After the cleanup there will be two commits: "Scene setup" (Part 1), then "Add DOTween" (stage 1).
+**Part 2: Core Gameplay, stage 2 (level data).** Claude has presented the JSON schema decisions, and the user is choosing.
+- **Git:** `5ca84a3` Scene setup (Part 1), `f9466c8` Add DOTween (stage 1). Commit after each finished stage.
 
 ## Done
 - [x] Setup: rubric, documentation rules, asset inventory, learning mode
