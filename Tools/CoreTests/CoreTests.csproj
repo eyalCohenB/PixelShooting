@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Test harness for the Unity-independent Core code. Lives outside Assets/ so Unity ignores it. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>9</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/_Project/Scripts/Core/Levels/*.cs" Exclude="../../Assets/_Project/Scripts/Core/Levels/LevelCatalog.cs" />
+    <Compile Include="../../Assets/_Project/Scripts/Core/Board/*.cs" />
+    <Compile Include="../../Assets/_Project/Scripts/Core/Queue/*.cs" />
+  </ItemGroup>
+</Project>

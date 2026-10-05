@@ -128,6 +128,15 @@ The assignment was built with Claude Code (Claude Opus 5.5) as a pair programmer
     - I made the shooter prefab and play-tested it.
     - Claude caught that `Renderer.sharedMaterials` allocates on every call, and cached it.
 
+  - **Stage 5, conveyor (designed only, day 1):**
+    - I chose a computed rounded-rect path, the same speed for all riders plus an entry gap (so overlap can't happen by construction), and capacity reserved at tap time.
+- **End of day 1, how the way I worked changed:**
+  - I started in strict learning mode (I write, Claude mentors).
+  - As the day went on I delegated more and more ("just implement it") and asked for shorter answers.
+  - Claude kept explaining every piece it wrote, so I can still explain it in the interview.
+  - Claude saved these preferences to its memory and to `CLAUDE.md`, so the next session continues the same way.
+  - Claude moved its ad-hoc test harness into the repo (`Tools/CoreTests`), so the tests survive between sessions.
+
 <!-- Template for each part:
 ### Part N: <title> (<date>)
 - **What I asked:**

@@ -3,21 +3,37 @@
 Project context for Claude Code sessions. Keep this file updated after every completed part.
 
 ## Start here (new session)
-1. Read this whole file, then `PROJECT_STATUS.md` (where we are and what's next) and `AI_USAGE.md` (the log you must keep appending to).
-2. **Expected state as of 2026-10-05:**
-   - The Unity 2022.3.62f2 project exists in this folder with the package imported.
-   - It was created from the 2D URP template and has since been switched to the **Built-in pipeline**. The build target is **Android**, portrait only.
-   - Received so far: the Core Mechanics overview, the Level JSON note, and **Part 1: Scene Setup**, which is **complete**.
-   - Scene: `Assets/_Project/Scenes/Game.unity`.
-   - Scripts: `Core/CameraFitMath`, `View/CameraFitter`, `View/SafeAreaPanel`.
-   - **Part 2: Core Gameplay has been received** (see Spec). The user wants it done **slowly, stage by stage**, keeping strictly to the guidelines. The stage plan and open questions are in `PROJECT_STATUS.md`.
-3. **What happens next:**
-   - The user will send the assignment spec **in parts**.
-   - For each part: help the user design the solution (suggest approaches), and let **the user implement it** (see "Learning mode" below). Then update all three docs before saying the part is done.
-   - Don't jump ahead or invent mechanics that aren't in the spec. Ask when something is ambiguous.
-4. **Earlier session:**
-   - Docs were set up from `C:\Users\ecohen\source\repos`.
-   - `source\repos\MyProject` (C/SDL3) is unrelated, so ignore it.
+1. Read this whole file, then `PROJECT_STATUS.md` (current step and checklist) and `AI_USAGE.md` (the log you must keep appending to). Also read the memory index (`MEMORY.md`), which holds user preferences.
+2. **Where we are (end of 2026-10-05):**
+   - **Part 1 (Scene Setup): done.**
+   - **Part 2 (Core Gameplay): stages 0-4 done and committed. Stage 5 (Conveyor) is designed but has no code yet.**
+   - **The first thing to do next session:** ask the user, in one line, "Should I implement stage 5, or do you want to write part of it?" The decisions are already made (A/A/A, see "Conveyor" below). Then build it.
+3. **How the user wants to work** (this changed during day 1; it overrides "Learning mode" below):
+   - **Keep answers SHORT.** A few bullets and one recommendation. The user is tired of long messages.
+   - **Go stage by stage.** For each stage: briefly present 2-3 decisions with a recommendation, let the user choose, implement when asked (the user usually says "just implement it"), then explain briefly how it works.
+   - For Core code: test in the .NET harness (`Tools/CoreTests`, run `dotnet run`). Then give the user short Unity setup steps and things to check.
+   - After the user confirms it works in Unity: update the 3 docs, then commit **only when the user says "commit"**. Use one commit per stage and end messages with the Co-Authored-By line.
+   - Don't suggest resizing sprites to match the mock exactly.
+4. **Project facts a new session needs:**
+   - Unity 2022.3.62f2, **Built-in render pipeline** (switched from 2D URP, because the package shader is Built-in only), Android, portrait only. Old Input Manager (`Input.GetMouseButtonDown`).
+   - Scene: `Assets/_Project/Scenes/Game.unity`. Code: `Assets/_Project/Scripts/Core` (pure C#, namespace `PixelShooting.Core.*`) and `Scripts/View` (MonoBehaviours, `PixelShooting.View`).
+   - Scene hierarchy (world space, BG at the origin, sprites at z=0, 3D shooters at z=-1, camera at z=-10):
+     - `BG` (sorting layer Background), with children:
+       - `Holders/Holder_0..4` at x = +/-3.76, +/-1.88, 0; y = -4.16
+       - `ConveyorStart`, with child `CapacityLabel` (TMP)
+       - `Conveyor` (empty anchor, at the origin)
+       - `Queue` at y -6.5, with `QueueView`
+       - `BoardArea` at y 3.26, with `BoardView` (area 7.8x7.8)
+     - `Main Camera` (`CameraFitter`)
+     - `Directional Light`
+     - `HUDCanvas/SafeArea`
+     - `EventSystem`
+     - `ShooterPool` (`ShooterViewPool`)
+     - A tester object with `GameplayTester`
+   - Sorting layers: Background, Board, Gameplay, FX. DOTween is installed (`Assets/Plugins/Demigiant`), with recycling and safe mode on.
+   - Temporary debug components: `GameplayTester` (keys 1/2/3 load a level, R restarts, Space fires a random shot, S shakes, click takes a queue shooter) and `LevelLoadTester`. Both get replaced by the real game flow in stage 8.
+   - Git: on `master`. One commit per finished stage (see `git log`).
+5. **Earlier session note:** `C:\Users\ecohen\source\repos\MyProject` (C/SDL3) is unrelated, so ignore it.
 
 ## Project
 
@@ -38,8 +54,8 @@ Project context for Claude Code sessions. Keep this file updated after every com
 3. Keep `PROJECT_STATUS.md` up to date with the current step, what's done, and next steps.
 4. Document code where it's needed, especially *how and why* key systems work (shooter logic, the conveyor system, etc.). The user will be interviewed and must be able to explain everything.
 
-## Learning mode (from the user, highest priority)
-The user wants to implement most of this project themselves to learn from it.
+## Learning mode (original rules from day 1; "How the user wants to work" above takes priority now)
+The user originally wanted to implement most of this project themselves to learn from it.
 1. **Don't implement anything unless the user explicitly asks.** Don't write or edit code, scenes, prefabs or other project files on your own. Updating the three docs is the exception (rules 1–3 above).
 2. **When asked how to approach something, suggest ways to implement it.** Give options with tradeoffs (performance, simplicity, how it fits the architecture) and a recommendation. Short snippets that illustrate an idea are fine. Don't hand over full implementations unless asked.
 3. **When asked how to do something in Unity, give a detailed step-by-step guide.** Include exact menu paths (e.g. `GameObject > UI > Image`), Inspector fields and values, component names, where to put files, and how to check that it worked.
@@ -143,20 +159,20 @@ UI/
   - The holder row sits at about 63–69% of the height: 5 tiles, each about 13% of the width.
   - `Conveyor_start` sits on the bottom-left corner of the track.
 - `Conveyor_start.png` is 269×330. `Holder.png` is 162×161.
-- **Render pipeline issue:**
-  - The user created the project with the **2D URP template**: Renderer2D, URP 14.0.12, and Default Behavior Mode set to 2D.
-  - `MobileSingleColorGlossy.shader` is a **Built-in pipeline shader** (CGPROGRAM, `LightMode=ForwardBase`). It renders pink under URP.
-  - Claude recommended switching the project to Built-in.
-- Default orientation is still Auto Rotation (`defaultScreenOrientation: 4`). It must become Portrait.
-- The `.unitypackage` was moved into `Assets/`. It should go back to the project root.
+- **Render pipeline (resolved):** the project was created from the 2D URP template, but `MobileSingleColorGlossy.shader` is Built-in only (CGPROGRAM, `ForwardBase`). The project was switched to **Built-in**, and the URP package was removed.
+- **Resolved:** orientation is set to Portrait, and the `.unitypackage` is back in the project root.
 
-## Architecture
-_Proposed for Part 1, not yet confirmed by the user. Logic is plain C#, and the view is MonoBehaviours._
-- `BoardModel`: color-index grid plus "exposed cell" queries. Cells are removed logically when a bullet is fired, so two shooters can never target the same cell. The visual removal happens when the bullet hits.
-- `ConveyorModel`: a closed path parameterized by distance, with a fixed number of slots (5 if the "5/5" counter is the capacity). A shooter is placed only into a free slot at the entry point, so overlap can't happen by construction.
-- `ShooterQueue` (columns, only the top one is pickable) and `Holder` (a fixed-size array).
-- `GameController`: placement rules, loopback, and win/lose.
-- View: board rendering (a single texture or pooled sprites), pooled bullets and pooled shooters.
+## Architecture (actual, end of day 1)
+- **Core (pure C#, testable outside Unity):**
+  - `LevelData`: immutable, from JSON.
+  - `BoardModel`: live cells and exposed-cell queries.
+  - `Shooter` and `QueueModel`.
+  - Still to come: `ConveyorModel` (stage 5), shooting (6), `HolderModel` (7), game flow (8).
+- **View (MonoBehaviours):**
+  - `BoardView`, `QueueView`, `ShooterView` and `ShooterViewPool`, `CameraFitter`, `SafeAreaPanel`.
+  - They read the models and animate with DOTween.
+- **Flow:** controllers (currently `GameplayTester`) call the model first, then the view. For example, `queue.TakeTop(c)` and then `queueView.TakeTop(queue, c)`.
+- Models don't raise events (decision C1). Callers use return values.
 
 ## Systems: how they work
 ### Camera fitting (Part 1; written by Claude at the user's request on 2026-10-05, because the user considers it boilerplate)
@@ -197,7 +213,7 @@ _Proposed for Part 1, not yet confirmed by the user. Logic is plain C#, and the 
 - **It warns about:** unused palette colors and empty columns.
 - **Files** (`Scripts/Core/Levels/`, namespace `PixelShooting.Core.Levels`):
   - Written by Claude: `LevelDto`, `ShooterSpec` (readonly struct), `LevelData` (immutable; accessors `GetCell`, `GetColor`, `GetQueueLength`, `GetShooter`), `LevelLoader.TryLoad(json, name, out level, errors, warnings)`, and `LevelCatalog` (ScriptableObject, menu `PixelShooting/Level Catalog`).
-  - **`LevelValidator.Validate` is the user's to implement.**
+  - `LevelValidator.Validate`: the user wrote the structural checks. Claude fixed the bugs and finished it.
 - **`LevelData` model:**
   - `sbyte[]` cells, row-major, **y = 0 is the bottom row**.
   - `Color32[]` palette, at most 127 colors.
@@ -209,14 +225,14 @@ _Proposed for Part 1, not yet confirmed by the user. Logic is plain C#, and the 
   - `Level03`: 10×10 concentric rings, 4 colors, 3 queues.
   - `Invalid_BulletMismatch`: red is 7 bullets against 8 cells. It **must** be rejected.
 
-## Board model (Part 2, stage 3; the user implements it)
+## Board model (Part 2, stage 3, done)
 - **Point 1, decided 2026-10-05.** `BoardModel` is pure C# (no UnityEngine). It's built from `LevelData` and has the same coordinates: x right, y up, (0,0) at the bottom-left.
   - **A1, cell state:** a single `sbyte[]` of colors, copied from the level. **Firing clears the cell to `EmptyCell` immediately.** That logical removal is the reservation, so there's no separate "targeted" state. The view removes the sprite later, when the bullet lands.
   - **B1, counting:** only `RemainingCells` (an int, decremented on fire), and `IsCleared => RemainingCells == 0` in O(1). There are no per-color counts.
     - ⚠️ `IsCleared` becomes true when the **last shot is fired**, not when it lands. The win flow (stage 8) must wait for bullets in flight and pop animations.
   - **C1, notifications:** no events. Queries return values. The shooting system gets the x,y of the taken cell, fires the bullet, and tells `BoardView` to pop it on hit.
   - **`Reset(LevelData)`** reuses arrays when the size matches. Restarting allocates nothing.
-- **Point 2, exposed cells (recommended options; the user said "move on" on 2026-10-05):**
+- **Point 2, exposed cells (recommended options accepted):**
   - Each side (`enum BoardSide : byte { Bottom, Right, Top, Left }`) and each line stores a **depth**: how many steps in from that side the search starts. Rule: every cell before the depth is empty.
   - `TryGetExposed(side, line, out x, out y)` steps past empty cells **lazily**, stores the new depth, and returns false if it runs off the board. It only looks; it doesn't remove anything.
   - This covers holes, cells removed from other sides, and empty lines. The total work over a level is ≤ 4·W·H, so each query is O(1) amortized.
@@ -233,9 +249,9 @@ _Proposed for Part 1, not yet confirmed by the user. Logic is plain C#, and the 
   - `Build(board, level)` runs after `Reset`.
   - `Pop(x,y)` is a DOTween scale to 0 with **no** `OnComplete`, so no closure. The next `Build` hides the cell.
   - `GetCellWorldPosition(x,y)` gives bullet targets and firing points.
-  - `BoardTester` is a temporary helper: keys 1/2/3 load a level, Space fires a random valid shot, R restarts.
+  - (The old `BoardTester` was replaced by `GameplayTester` in stage 4.)
 
-## Queue (Part 2, stage 4, decided 2026-10-05)
+## Queue (Part 2, stage 4, done)
 - **Runtime shooter:** a `Shooter` **class** (pure C#) with color, bullets left and location (Queue/Conveyor/Holder/Destroyed). The same object moves between containers. Shooters are created once per level.
 - **`QueueModel`:**
   - Each column is a fixed `Shooter[]` plus a `top` index. Taking a shooter is `top++`: no shifting, no allocation.
@@ -257,6 +273,30 @@ _Proposed for Part 1, not yet confirmed by the user. Logic is plain C#, and the 
     - `TryPickColumn(worldPoint)` is a math hit-test.
   - `GameplayTester` replaces `BoardTester`: keys 1/2/3 load, R restarts, Space fires, S shakes, and a click takes a shooter, which jumps to `ConveyorStart`.
 
+## Conveyor (Part 2, stage 5: DECIDED, NOT IMPLEMENTED YET; next session starts here)
+- **Path:**
+  - A rounded rectangle computed in code along the track's center line (about x ±4.75, y -1.77 to 8.26), tuned with a gizmo.
+  - Positions are measured as distance along the path. It starts and ends at `ConveyorStart` (bottom-left) and runs counter-clockwise.
+- **No overlap, by construction:**
+  - All riders move at the **same constant speed**, so the gaps between them never change.
+  - The only risk is the entrance, so a new rider enters only when the previous rider is ≥ `minSpacing` ahead. Fast taps just land a moment later.
+- **Capacity of 5, reserved at tap time:** the label (`free/5`) updates immediately. A tap at 0 free makes the shooter shake.
+- **Also in this stage:**
+  - Pooled skateboards: attached when a shooter boards, released when it leaves or is destroyed.
+  - Shooters face the board.
+  - When a rider's distance reaches the lap length, it leaves the conveyor (the holder is stage 7).
+  - The conveyor holds the firing point (path distance) of every row and column; the shooting itself is stage 6.
+- **Implementation sketch (proposed by Claude, not yet built):**
+  - `Core/Conveyor/ConveyorPath`: rounded-rect math, `Length`, `Evaluate(distance) -> position + tangent`.
+  - `Core/Conveyor/ConveyorModel`: capacity 5, `Free` count, `TryReserve()` at tap time, and rider entries `{Shooter, distance}` in a fixed array of 5.
+    - `Update(dt)` advances every rider by `speed*dt`. A rider whose distance reaches `Length` exits.
+    - Entry gate: a rider enters only when the previous rider's distance is >= `minSpacing`.
+  - `View/ConveyorView`:
+    - Moves `ShooterView`s along the path and rotates them to face the board.
+    - Attaches pooled skateboards (`Skateboard.fbx` prefab).
+    - Updates `CapacityLabel` to `free/5`, only when the value changes (no per-frame strings).
+  - `GameplayTester`: a tap reserves a place (or shakes if full), hops the shooter to the start, and the conveyor takes over.
+
 ## Animation (Part 2, stage 1, decided 2026-10-05)
 - **DOTween** handles one-off A→B animations:
   - queue shift-up
@@ -274,6 +314,14 @@ _Proposed for Part 1, not yet confirmed by the user. Logic is plain C#, and the 
   - **No capturing lambdas** in `OnComplete` or `OnUpdate`. Use cached delegates or instance methods.
   - Kill tweens with `DOKill` before reusing a pooled object.
 - **Logic stays independent of DOTween.** Only View scripts reference DOTween; Core never does.
+
+## Testing
+- **`Tools/CoreTests/`** is a .NET 10 console harness, outside `Assets/` so Unity ignores it. Run it with `dotnet run` in that folder.
+  - It compiles the Core sources directly (`Levels`, `Board`, `Queue`) against `UnityShim.cs`, which stands in for `Color`, `Color32`, `ColorUtility` and `JsonUtility`.
+  - Suites: `LevelTests` (14 checks), `BoardTests` (17, including 42k random queries compared against brute force and 0-allocation checks), `QueueTests` (7).
+  - **When adding Core code, add a suite and add its folder to `CoreTests.csproj`.** (`.gitignore` ignores `*.csproj` but has an exception for `Tools/**`.)
+- Unity is usually open while we work, so batch mode can't run. The user tests the View in Play mode.
+- Shim difference: Unity's `TryParseHtmlString` also accepts named colors like "red". The shim doesn't.
 
 ## Performance conventions
 - No per-frame heap allocations in `Update` or other hot paths. Use object pooling and preallocated buffers/arrays.

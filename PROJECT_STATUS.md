@@ -2,9 +2,15 @@
 
 _Last updated: 2026-10-05_
 
-## Current step
-**Part 2: Core Gameplay. Stage 4 (Queue) is done and committed (2026-10-05). Now: stage 5 (Conveyor), in design.**
-- **Git:** `5ca84a3` Scene setup (Part 1), `f9466c8` Add DOTween (stage 1). Commit after each finished stage. Stage 2 commit: "Level data loading and validation".
+## Current step (end of day 1, 2026-10-05; resume here)
+**Part 2, stage 5 (Conveyor): decisions made (A/A/A), no code yet.**
+- **Next action:** ask the user "Should I implement stage 5, or do you want to write part of it?", then build it using the sketch in `CLAUDE.md` → Conveyor:
+  1. `ConveyorPath` and `ConveyorModel` (Core), with a `ConveyorTests` suite in `Tools/CoreTests`.
+  2. `ConveyorView`, skateboard pool and `CapacityLabel` updates (View).
+  3. Wire it into `GameplayTester`. The user does the Unity setup (skateboard prefab etc.) and play-tests.
+- After that: stage 6 (Shooting), 7 (Holder), 8 (Game flow), 9 (Polish/Profiler).
+- **Git:** `master`, one commit per stage. Last stage commit: `856615b` "Shooter queue with pooled shooter views". End-of-day doc updates and `Tools/CoreTests` are uncommitted unless the user said to commit.
+- **Tests:** `cd Tools/CoreTests && dotnet run` → Level 14, Board 17, Queue 7 checks, all passing.
 
 ## Done
 - [x] Setup: rubric, documentation rules, asset inventory, learning mode
@@ -20,11 +26,11 @@ _Last updated: 2026-10-05_
 
 ## Part 2 stage plan (one stage at a time: design → decide → implement → review → docs)
 - [x] **0. Spec breakdown:** questions answered on 2026-10-05
-- [x] **1. Tweening:** **DOTween** chosen, installed (modules: UI, TMP, Sprite), and the smoke test passed. Install it, run Setup, then configure Init (recycling, capacity, safe mode). Riding the conveyor and bullet flight are **not** tweens; the models drive them.
+- [x] **1. Tweening:** **DOTween** chosen, installed (modules: UI, TMP, Sprite), and the smoke test passed. Riding the conveyor and bullet flight are **not** tweens; the models drive them. **To do in stage 8:** call `DOTween.Init(...).SetCapacity(...)` in a bootstrap.
 - [x] **2. Level data:** JSON schema, DTO, loader, validation (bullets = cells), 2–3 sample levels
 - [x] **3. Board:** `BoardModel` (grid, exposed-cell queries) and `BoardView` (cells scaled to fill `BoardArea`)
 - [x] **4. Queue:** `QueueModel` (only the top shooter is selectable, the rest shift up) and its view and input
-- [ ] **5. Conveyor:** path, capacity 5, no overlap, lap tracking, the "available" label, skateboards
+- [ ] **5. Conveyor:** path, capacity 5, no overlap, lap tracking, the `free/5` label, skateboards. **Decided A/A/A, not built.**
 - [ ] **6. Shooting:** firing points per row/column, matching the exposed cell, removing the cell on fire, pooled bullets, destroying the shooter when its bullets run out
 - [ ] **7. Holder:** 5 slots, a shooter returns after its lap, shooters can be selected from the holder, the 6th arrival loses
 - [ ] **8. Game flow:** state machine, win and lose, restart, HUD popup
