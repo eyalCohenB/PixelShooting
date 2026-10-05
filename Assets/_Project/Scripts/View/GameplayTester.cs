@@ -1,38 +1,61 @@
 using System.Collections.Generic;
+using DG.Tweening;
 using PixelShooting.Core.Board;
 using PixelShooting.Core.Levels;
+using PixelShooting.Core.Queue;
 using UnityEngine;
 
 namespace PixelShooting.View
 {
     /// <summary>
-    /// Temporary debug helper (Part 2, stage 3): builds a level on the BoardView.
-    /// Keys: 1/2/3 = load that catalog level, Space = fire one random valid shot and pop the cell,
-    /// R = restart the current level. Remove once the real game flow exists.
+    /// Temporary debug helper (replaces BoardTester) until the real game flow exists.
+    /// Keys: 1/2/3 load a level, R restart, Space fire a random valid shot, S shake column 0.
+    /// Click/tap a column's top shooter: it's taken from the queue and flies to the conveyor
+    /// start (then returns to the pool, since the conveyor doesn't exist yet).
     /// </summary>
-    public class BoardTester : MonoBehaviour
+    public class GameplayTester : MonoBehaviour
     {
         [SerializeField] private LevelCatalog catalog;
         [SerializeField] private BoardView boardView;
+        [SerializeField] private QueueView queueView;
+        [SerializeField] private Transform conveyorStart;
 
         private readonly BoardModel board = new BoardModel();
+        private readonly QueueModel queue = new QueueModel();
         private readonly List<string> errors = new List<string>();
         private readonly List<string> warnings = new List<string>();
         private LevelData level;
+        private Camera cam;
 
-        private void Start() => Load(0);
+        private void Start()
+        {
+            cam = Camera.main;
+            Load(0);
+        }
 
         private void Update()
         {
             if (Input.GetKeyDown(KeyCode.Alpha1)) Load(0);
             if (Input.GetKeyDown(KeyCode.Alpha2)) Load(1);
             if (Input.GetKeyDown(KeyCode.Alpha3)) Load(2);
-            if (Input.GetKeyDown(KeyCode.R) && level != null)
-            {
-                board.Reset(level);
-                boardView.Build(board, level);
-            }
+            if (Input.GetKeyDown(KeyCode.R)) Restart();
             if (Input.GetKeyDown(KeyCode.Space)) FireRandom();
+            if (Input.GetKeyDown(KeyCode.S)) queueView.Shake(0);
+            if (Input.GetMouseButtonDown(0)) OnTap(Input.mousePosition);
+        }
+
+        private void OnTap(Vector3 screenPosition)
+        {
+            Vector3 world = cam.ScreenToWorldPoint(screenPosition);
+            if (!queueView.TryPickColumn(world, out int column)) return;
+
+            queue.TakeTop(column);
+            ShooterView view = queueView.TakeTop(queue, column);
+
+            Vector3 target = conveyorStart.position;
+            target.z = view.CachedTransform.position.z;
+            view.CachedTransform.DOKill();
+            view.CachedTransform.DOJump(target, 1f, 1, 0.4f).OnComplete(view.ReleaseCallback);
         }
 
         private void Load(int index)
@@ -46,12 +69,18 @@ namespace PixelShooting.View
                 Debug.LogError(string.Join("\n", errors), file);
                 return;
             }
-            board.Reset(level);
-            boardView.Build(board, level);
-            Debug.Log($"{file.name}: {board.Width}x{board.Height}, {board.RemainingCells} cells, cell size {boardView.CellSize:0.00}");
+            Restart();
         }
 
-        // Tries random sides/lines until a shot with the exposed cell's own color succeeds.
+        private void Restart()
+        {
+            if (level == null) return;
+            board.Reset(level);
+            boardView.Build(board, level);
+            queue.Reset(level);
+            queueView.Build(queue, level);
+        }
+
         private void FireRandom()
         {
             if (level == null || board.IsCleared) return;
@@ -60,11 +89,9 @@ namespace PixelShooting.View
                 var side = (BoardSide)Random.Range(0, 4);
                 int line = Random.Range(0, board.LineCount(side));
                 if (!board.TryGetExposed(side, line, out int x, out int y)) continue;
-                byte color = (byte)board.GetCell(x, y);
-                if (board.TryFire(side, line, color, out x, out y))
+                if (board.TryFire(side, line, (byte)board.GetCell(x, y), out x, out y))
                 {
                     boardView.Pop(x, y);
-                    if (board.IsCleared) Debug.Log("Board cleared");
                     return;
                 }
             }

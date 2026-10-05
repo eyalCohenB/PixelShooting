@@ -122,6 +122,12 @@ The assignment was built with Claude Code (Claude Opus 5.5) as a pair programmer
       - Pop uses no callback, to avoid closure allocations.
       - I play-tested it and tuned the area size to 7.8 so cells sit inside the sand.
 
+  - **Stage 4, queue:**
+    - I chose a `Shooter` class, an array with a `top` index per column, math-based tap picking, and 3 visible rows.
+    - I said "just implement it", so Claude wrote `Shooter`, `QueueModel` (harness: 7 checks), `ShooterView`, `ShooterViewPool`, `QueueView` and `GameplayTester`.
+    - I made the shooter prefab and play-tested it.
+    - Claude caught that `Renderer.sharedMaterials` allocates on every call, and cached it.
+
 <!-- Template for each part:
 ### Part N: <title> (<date>)
 - **What I asked:**

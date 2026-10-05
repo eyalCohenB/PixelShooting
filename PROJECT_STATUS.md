@@ -3,7 +3,7 @@
 _Last updated: 2026-10-05_
 
 ## Current step
-**Part 2: Core Gameplay. Stage 3 (Board) is done and committed (2026-10-05). Now: stage 4 (Queue), in design.**
+**Part 2: Core Gameplay. Stage 4 (Queue) is done and committed (2026-10-05). Now: stage 5 (Conveyor), in design.**
 - **Git:** `5ca84a3` Scene setup (Part 1), `f9466c8` Add DOTween (stage 1). Commit after each finished stage. Stage 2 commit: "Level data loading and validation".
 
 ## Done
@@ -23,7 +23,7 @@ _Last updated: 2026-10-05_
 - [x] **1. Tweening:** **DOTween** chosen, installed (modules: UI, TMP, Sprite), and the smoke test passed. Install it, run Setup, then configure Init (recycling, capacity, safe mode). Riding the conveyor and bullet flight are **not** tweens; the models drive them.
 - [x] **2. Level data:** JSON schema, DTO, loader, validation (bullets = cells), 2–3 sample levels
 - [x] **3. Board:** `BoardModel` (grid, exposed-cell queries) and `BoardView` (cells scaled to fill `BoardArea`)
-- [ ] **4. Queue:** `QueueModel` (only the top shooter is selectable, the rest shift up) and its view and input
+- [x] **4. Queue:** `QueueModel` (only the top shooter is selectable, the rest shift up) and its view and input
 - [ ] **5. Conveyor:** path, capacity 5, no overlap, lap tracking, the "available" label, skateboards
 - [ ] **6. Shooting:** firing points per row/column, matching the exposed cell, removing the cell on fire, pooled bullets, destroying the shooter when its bullets run out
 - [ ] **7. Holder:** 5 slots, a shooter returns after its lap, shooters can be selected from the holder, the 6th arrival loses

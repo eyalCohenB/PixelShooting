@@ -44,7 +44,7 @@ The user wants to implement most of this project themselves to learn from it.
 2. **When asked how to approach something, suggest ways to implement it.** Give options with tradeoffs (performance, simplicity, how it fits the architecture) and a recommendation. Short snippets that illustrate an idea are fine. Don't hand over full implementations unless asked.
 3. **When asked how to do something in Unity, give a detailed step-by-step guide.** Include exact menu paths (e.g. `GameObject > UI > Image`), Inspector fields and values, component names, where to put files, and how to check that it worked.
 4. When the user asks for a review, point out issues and explain why. Let the user make the fix unless they ask you to.
-5. **Exception, added 2026-10-05:** the user delegates infrastructure and boilerplate (camera fit, safe area, and similar) to Claude. When the user asks, write it and explain it afterward, without a walkthrough. Gameplay systems stay in mentor mode.
+5. **Update, 2026-10-05:** the user now often delegates implementation, both infrastructure and gameplay ("just implement it"). Present decisions briefly. When asked, write the code, test it and explain it. Keep answers short.
 
 ## Tech stack
 - **Unity 2022.3.62f2** (required by the assignment), C#.
@@ -234,6 +234,28 @@ _Proposed for Part 1, not yet confirmed by the user. Logic is plain C#, and the 
   - `Pop(x,y)` is a DOTween scale to 0 with **no** `OnComplete`, so no closure. The next `Build` hides the cell.
   - `GetCellWorldPosition(x,y)` gives bullet targets and firing points.
   - `BoardTester` is a temporary helper: keys 1/2/3 load a level, Space fires a random valid shot, R restarts.
+
+## Queue (Part 2, stage 4, decided 2026-10-05)
+- **Runtime shooter:** a `Shooter` **class** (pure C#) with color, bullets left and location (Queue/Conveyor/Holder/Destroyed). The same object moves between containers. Shooters are created once per level.
+- **`QueueModel`:**
+  - Each column is a fixed `Shooter[]` plus a `top` index. Taking a shooter is `top++`: no shifting, no allocation.
+  - "The shooters below move up" happens only in the view, as a tween.
+- **Input:**
+  - Plain math, no physics: convert the tap to world space, find the column by x, and check it's near the top shooter.
+  - The holder will use the same approach.
+- **Display:** only the first few rows of each column are shown (configurable, default 3). The rest appear as shooters move up.
+- **Implemented by Claude (2026-10-05, the user said "just implement it")** in `Scripts/Core/Queue/`:
+  - `Shooter`: `ColorIndex`, `BulletsLeft`, `Location`.
+  - `QueueModel`: `Reset`, `IsEmpty`, `Remaining`, `PeekTop`, `TakeTop` (sets `Location` to Conveyor), and `GetAt(column, rowFromTop)`.
+  - Tested in the harness: 7 checks pass.
+- **View, written by Claude (2026-10-05)** in `Scripts/View/`:
+  - `ShooterView`, on the prefab root. It tints with a `MaterialPropertyBlock` (shared materials, no copies), and the stroke material gets a darker shade. It has `Shake()` and a cached `ReleaseCallback`, so tweens can return it to the pool without allocating.
+  - `ShooterViewPool`: prewarms (default 24), uses a `Stack`, and grows with a warning. The same view follows its shooter from the queue to the conveyor to the holder.
+  - `QueueView`, on the `Queue` anchor:
+    - Columns are centered, and rows go downward. Only `visibleRows` (3) are shown.
+    - `TakeTop` must be called **after** `QueueModel.TakeTop`. It returns the top view, tweens the rest up, and scales in the next hidden shooter.
+    - `TryPickColumn(worldPoint)` is a math hit-test.
+  - `GameplayTester` replaces `BoardTester`: keys 1/2/3 load, R restarts, Space fires, S shakes, and a click takes a shooter, which jumps to `ConveyorStart`.
 
 ## Animation (Part 2, stage 1, decided 2026-10-05)
 - **DOTween** handles one-off A→B animations:
