@@ -6,8 +6,8 @@ Project context for Claude Code sessions. Keep this file updated after every com
 1. Read this whole file, then `PROJECT_STATUS.md` (current step and checklist) and `AI_USAGE.md` (the log you must keep appending to). Also read the memory index (`MEMORY.md`), which holds user preferences.
 2. **Where we are (day 3, 2026-10-08):**
    - **Part 1 (Scene Setup): done.**
-   - **Part 2 (Core Gameplay): stages 0-7 done and committed** (stages 5, 6 and 7 on 2026-10-08).
-   - **The first thing to do next session: stage 8 (Game flow).** Briefly present 2-3 decisions with a recommendation, then guide the user (or implement it if they say "you do it" / "just implement it"). The details are in `PROJECT_STATUS.md`.
+   - **Part 2 (Core Gameplay): COMPLETE** (stages 0-8; stage 9 polish was skipped by the user on 2026-10-08).
+   - **The first thing to do next session: Part 3**, a bonus part the user sends. Break it down and ask questions, then go stage by stage: briefly present 2-3 decisions with a recommendation, and ask "you or me?" (on day 3 the user mostly said "you do it").
    - On day 3 the user delegated more again: "you do it" for the model redesign, the tester wiring and the skateboards. Always ask "you or me?" for each step.
 3. **How the user wants to work** (updated on day 2; this overrides "Learning mode" below):
    - **From stage 5 on, the USER writes the gameplay code, and Claude guides.** The user isn't very experienced in C#/Unity and gets stuck on big tasks, but wants to be able to explain the code in the interview. So:
@@ -37,7 +37,7 @@ Project context for Claude Code sessions. Keep this file updated after every com
      - `ShooterPool` (`ShooterViewPool`)
      - A tester object with `GameplayTester`
    - Sorting layers: Background, Board, Gameplay, FX. DOTween is installed (`Assets/Plugins/Demigiant`), with recycling and safe mode on.
-   - Temporary debug components: `GameplayTester` (keys 1/2/3 load a level, R restarts, Space fires a random shot, S shakes, click takes a queue or holder shooter and sends it round the conveyor, then to the holder; it also owns the conveyor path settings and a path gizmo) and `LevelLoadTester`. Both get replaced by the real game flow in stage 8.
+   - `GameController` (it was `GameplayTester`) runs the game. It owns the conveyor path settings and a path gizmo; editor-only keys 1/2/3 load a level and R restarts. `LevelLoadTester` is a leftover debug component.
    - Git: on `master`. One commit per finished stage (see `git log`).
 5. **Earlier session note:** `C:\Users\ecohen\source\repos\MyProject` (C/SDL3) is unrelated, so ignore it.
 
@@ -176,7 +176,7 @@ UI/
   - `ConveyorPath` and `ConveyorModel` (stage 5).
   - `FiringPoints` and `ShootingSystem` (stage 6).
   - `HolderModel` (stage 7).
-  - Still to come: game flow (8).
+  - Game flow lives in the View-side `GameController` (decision 1B, stage 8).
 - **View (MonoBehaviours):**
   - `BoardView`, `QueueView`, `ShooterView` and `ShooterViewPool`, `CameraFitter`, `SafeAreaPanel`.
   - They read the models and animate with DOTween.
@@ -351,6 +351,25 @@ UI/
 - **Pending taps:** a FIFO of `PendingTap {FromHolder, Index}`. A holder shooter can't be queued twice, and a column can't be tapped more times than it has shooters.
 - **Lose (temporary, until stage 8):** the tester sets `lost`, logs it, shakes the 6th shooter and freezes taps and the conveyor until R/1/2/3.
 
+## Game flow (Part 2, stage 8: DONE on 2026-10-08; all code by Claude, decisions by the user)
+- **`View/GameController.cs`** (it was `GameplayTester`; decision 1B kept the flow in one MonoBehaviour):
+  - It loads levels from `LevelCatalog`, handles taps (holder first, then queue) and runs the frame loop: pending hops → `Advance` → `Fire` → `CollectExits` → `Sync` → holder returns.
+  - `GameState { Playing, Won, Lost }`.
+- **Win:** `board.IsCleared`. Bullets = cells, so every shooter is used up at the same moment. The popup waits for `BulletSystem.InFlight == 0` plus a short delay, so the last pops can play.
+- **Lose:** `HolderModel.TryAdd` fails, i.e. the 6th arrival. That shooter shakes, then the popup appears.
+- **Level loading:**
+  - It loads into a local `LevelData`, so a failed load never wipes the current level.
+  - Invalid catalog entries are logged and skipped, and the level list wraps after the last one.
+- **`View/GamePopup.cs`:**
+  - Built and styled in code (`Init` from `GameController.Awake`), using `RoundedSprite`, a runtime 9-sliced rounded texture, because the package has no UI panel sprite.
+  - The button listener is added once. **Next** loads the next level, **Retry** restarts.
+  - It has no `Awake`, because it starts inactive.
+- **DOTween:** `DOTween.Init(true, true, ErrorsOnly).SetCapacity(200, 50)` in `GameController.Awake`.
+- **Bullet bubbles:**
+  - `ShooterView` builds a badge in `Init` (FX layer, a TMP number). `Bind` sets the count, and `GameController.ShowShot` updates it.
+  - `ConveyorView.Sync` calls `UpdateBubble` so it stays upright on turning riders.
+- **Levels:** `Level01-03` are forgiving. `Level04` is "order matters" (a single 20-bullet red ring shooter buried in column 0), and random tapping loses there about 46% of the time.
+
 ## Animation (Part 2, stage 1, decided 2026-10-05)
 - **DOTween** handles one-off A→B animations:
   - queue shift-up
@@ -372,7 +391,7 @@ UI/
 ## Testing
 - **`Tools/CoreTests/`** is a .NET 10 console harness, outside `Assets/` so Unity ignores it. Run it with `dotnet run` in that folder.
   - It compiles the Core sources directly (`Levels`, `Board`, `Queue`, `Conveyor`, `Shooting`, `Holder`) against `UnityShim.cs`, which stands in for `Color`, `Color32`, `ColorUtility` and `JsonUtility`.
-  - Suites: `LevelTests` (14 checks), `BoardTests` (17, including 42k random queries compared against brute force and 0-allocation checks), `QueueTests` (7), `ConveyorTests` (33: path, gate, two-sided gap, lap end, 20k-step random sim, 0 allocations), `ShootingTests` (11: points, lap order, blocking, lap-end cut-off, buffer overflow, Level03 sim with the bullets==cells invariant, 0 allocations), `HolderTests` (11).
+  - Suites: `LevelTests` (14 checks), `BoardTests` (17, including 42k random queries compared against brute force and 0-allocation checks), `QueueTests` (7), `ConveyorTests` (33: path, gate, two-sided gap, lap end, 20k-step random sim, 0 allocations), `ShootingTests` (11: points, lap order, blocking, lap-end cut-off, buffer overflow, Level03 sim with the bullets==cells invariant, 0 allocations), `HolderTests` (11), `Level04Tests` (plays whole games: Level04 is winnable via DFS and random tapping loses ≥1/3; it also reports Levels 1-3 never losing).
   - The shim also has a minimal `Vector2` and `Mathf.Clamp`. Extend it when Core uses more of UnityEngine.
   - **When adding Core code, add a suite and add its folder to `CoreTests.csproj`.** (`.gitignore` ignores `*.csproj` but has an exception for `Tools/**`.)
 - Unity is usually open while we work, so batch mode can't run. The user tests the View in Play mode.

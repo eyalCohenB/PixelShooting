@@ -45,6 +45,9 @@ namespace PixelShooting.View
             boards.Add(shooter, board);
         }
 
+        /// <summary>The view of a shooter on the conveyor (e.g. to update its bullet count).</summary>
+        public ShooterView GetView(Shooter shooter) => views[shooter];
+
         /// <summary>
         /// Called for each shooter that leaves the conveyor (lap done, or destroyed in stage 6).
         /// Drops its skateboard and returns its view.
@@ -56,6 +59,7 @@ namespace PixelShooting.View
             if (boards.Remove(shooter, out SkateboardView board))
                 board.Detach();
             view.CachedTransform.rotation = baseRotation;
+            view.UpdateBubble();
             return view;
         }
 
@@ -77,6 +81,7 @@ namespace PixelShooting.View
                 float angle = Mathf.Atan2(n.y, n.x) * Mathf.Rad2Deg - 90f;
                 v.CachedTransform.rotation = Quaternion.Euler(0, 0, angle) * baseRotation;
                 }
+                v.UpdateBubble();
             }
             if(model.Free != shownFree){
                 capacityLabel.SetText("{0}/5", model.Free);

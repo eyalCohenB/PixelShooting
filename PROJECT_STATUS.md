@@ -3,7 +3,33 @@
 _Last updated: 2026-10-08_
 
 ## Current step (2026-10-08; resume here)
-**Part 2, stage 7 (Holder): DONE**, play-tested by the user ("works great") and committed. **Next: stage 8 (Game flow).** Start it by briefly presenting 2-3 decisions, then ask "you or me?".
+**Part 2 (Core Gameplay) is COMPLETE.** Stage 8 (Game flow) is done and play-tested. **Stage 9 (polish) was skipped by the user** ("polish isn't needed right now"). **Next: Part 3**, a bonus part the user will send. Read it, break it down, ask questions, then go stage by stage as before.
+
+### Stage 8 summary (decisions 1B, 2, 3 by the user; all code by Claude at the user's request)
+- **1B:** `GameplayTester` was renamed to **`GameController`** (with its `.meta`, so the scene component stayed linked) and stays one MonoBehaviour.
+- **States:** `GameState { Playing, Won, Lost }`.
+  - **Win:** `board.IsCleared`, then the popup waits for `bullets.InFlight == 0` + `winPopupDelay`.
+  - **Lose:** a 6th holder arrival, then the shake, then `losePopupDelay`.
+  - While the game isn't Playing, taps and the simulation stop.
+- **Popup (`GamePopup`):**
+  - It's styled in code (`Init`, called from `GameController.Awake`): rounded card (`RoundedSprite`, a runtime 9-sliced texture), a green/orange ribbon, a 96 pt title, a subtitle, a 600×190 pulsing button and a dark dim.
+  - **Next** loads the next level (wrapping after the last); **Retry** restarts.
+  - It has no `Awake` on purpose: it starts inactive in the scene, and an `Awake` would run inside the first `Show` and undo it.
+- **`Load` bug fixes:**
+  - It loads into a local (a failed `TryLoad` used to wipe the current level), skips invalid catalog entries (logged) and wraps.
+  - The catalog's `Invalid_BulletMismatch` entry was replaced with `Level04` by the user.
+- **`Level04`:** "order matters". A red outer ring (one 20-bullet red shooter buried in column 0), a blue inner ring and a green centre.
+  - **Checked by the `Level04Tests` harness suite**, which plays whole games with the scene geometry: a winning order exists (found by DFS), and random tapping loses about 46% of the time. Levels 1-3 never lose to random tapping.
+- **Bullet bubble (the user's request):**
+  - `ShooterView` builds a badge (border + fill + TMP number) in `Init`. `Bind` sets the count, and each shot updates it (`ConveyorView.GetView` + `SetBullets`).
+  - `ConveyorView.Sync` calls `UpdateBubble` so the badge stays upright on turning riders.
+- **Other:**
+  - `DOTween.Init(...).SetCapacity(200, 50)` in `Awake`.
+  - Dev keys 1/2/3/R are editor-only.
+  - The level label uses `SetText("Level {0}")`.
+- **Possible cleanup:** `LevelLoadTester` is no longer needed.
+
+### Stage 7 summary (decisions 1A, 2A, 3A by the user; all code by Claude at the user's request)
 
 ### Stage 7 summary (decisions 1A, 2A, 3A by the user; all code by Claude at the user's request)
 - **`Core/Holder/HolderModel`:**
@@ -84,7 +110,7 @@ _Last updated: 2026-10-08_
 - **Known placeholders/notes:**
   - The exit hop goes to the 5/5 box. `Shooter.Location` is still not set on exit (stage 7).
   - **Path values** (tester Inspector): left -4.75, right 4.75, bottom -1.77, top 8.26, lapEndGap 1.6, speed 5, minSpacing 1.2, hopTime 0.4.
-- **Tests:** `cd Tools/CoreTests && dotnet run` → Level 14, Board 17, Queue 7, Conveyor 33, Shooting 11, Holder 11 checks, all passing.
+- **Tests:** `cd Tools/CoreTests && dotnet run` → Level 14, Board 17, Queue 7, Conveyor 33, Shooting 11, Holder 11, Level04 3 checks, all passing.
 - **Git:** `master`, one commit per stage.
 
 ## Done
@@ -108,8 +134,8 @@ _Last updated: 2026-10-08_
 - [x] **5. Conveyor:** path, capacity 5, no overlap (wait in place + two-sided gate), lap tracking, the `free/5` label, skateboards. Done on 2026-10-08.
 - [x] **6. Shooting** (done 2026-10-08): firing points per row/column, matching the exposed cell, removing the cell on fire, pooled bullets, destroying the shooter when its bullets run out
 - [x] **7. Holder** (done 2026-10-08): 5 slots, a shooter returns after its lap, shooters can be selected from the holder, the 6th arrival loses
-- [ ] **8. Game flow:** state machine, win and lose, restart, HUD popup
-- [ ] **9. Polish and verification:** animation pass, Profiler (GC alloc = 0 in gameplay), edge-case playtests, docs
+- [x] **8. Game flow** (done 2026-10-08): state machine, win and lose, restart, HUD popup, Level04, bullet bubbles
+- [~] **9. Polish and verification: SKIPPED by the user (2026-10-08)**: animation pass, Profiler (GC alloc = 0 in gameplay), edge-case playtests, docs
 
 ## Stage 0 answers (the user, 2026-10-05)
 1. **Lose:** the moment a **6th shooter arrives** at the full holder. This is the spec's rule, and it replaces the user's earlier "no one can shoot" rule.

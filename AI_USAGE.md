@@ -191,6 +191,19 @@ The assignment was built with Claude Code (Claude Opus 5.5) as a pair programmer
   - I asked Claude to write it: `HolderModel` (11 harness checks), `HolderView` and the tester changes (pending taps can now come from the queue or the holder; the 5/5-box placeholder was replaced).
   - **Verification:** the harness passes, and I play-tested it in Unity: holder return, re-sending from the holder, and the loss on a 6th arrival.
 
+- **Day 3 (2026-10-08): stage 8, game flow. Part 2 complete.**
+  - **My decisions:**
+    - I chose to keep the flow in one MonoBehaviour (B) rather than a testable Core `GameSession` (A), for speed.
+    - I agreed to the win rule (board cleared, popup after the bullets land) and the popup design.
+    - I decided to skip stage 9 (polish) and move on to Part 3.
+  - **What Claude wrote:** `GameController` (renamed from the tester), `GamePopup` and the DOTween init.
+  - **What I found in testing:**
+    - After the last level, Next logged an error and didn't loop. Claude traced it to the catalog still containing the deliberately invalid test level, plus a bug where a failed load wiped the current level. Load now skips invalid entries and wraps.
+    - I couldn't lose any level, so I asked for a level where order matters. Claude designed `Level04` and **proved it in the harness by simulating whole games**: winnable (a DFS finds an order), while random tapping loses about 46% of the time. The first design lost 0%, so Claude changed it and re-ran the simulation.
+    - The popup looked bad, so Claude restyled it in code (rounded card from a runtime sprite, coloured ribbon, big button).
+  - **Bullet bubble:** I asked for a bubble showing each shooter's bullets left. Claude added it to `ShooterView` (built in code; it stays upright on the conveyor).
+  - **Verification:** the harness passes, including the Level04 suite. I play-tested win, lose, Next/Retry, wrapping and the bubbles.
+
 <!-- Template for each part:
 ### Part N: <title> (<date>)
 - **What I asked:**

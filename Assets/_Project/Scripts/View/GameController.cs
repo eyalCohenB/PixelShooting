@@ -6,22 +6,26 @@ using PixelShooting.Core.Holder;
 using PixelShooting.Core.Levels;
 using PixelShooting.Core.Queue;
 using PixelShooting.Core.Shooting;
+using TMPro;
 using UnityEngine;
 
 namespace PixelShooting.View
 {
     /// <summary>
-    /// Temporary debug helper (replaces BoardTester) until the real game flow exists.
-    /// Keys: 1/2/3 load a level, R restart, S shake column 0.
-    /// Click/tap a column's top shooter or a holder shooter: it reserves a conveyor place (or shakes
-    /// if full), waits in place until the conveyor gate opens, then hops on and rides one lap. The
-    /// lap ends on the left side, just above the entrance; from there it hops to the leftmost free
-    /// holder slot. A 6th arrival at a full holder loses: logged, the game freezes until R/1/2/3
-    /// (stage 8 adds the real popup).
-    /// While riding, it fires at every row/column middle it passes (ShootingSystem); a shooter
-    /// that uses its last bullet is taken off the conveyor and shrinks away.
+    /// Runs the game: level loading, input, the per-frame gameplay loop and win/lose.
+    /// (Grew out of the stage 4-7 GameplayTester; decision 1B kept it as one MonoBehaviour.)
+    ///
+    /// Tap a column's top shooter or a holder shooter: it reserves a conveyor place (or shakes
+    /// if full), waits in place until the conveyor gate opens, then hops on and rides one lap,
+    /// firing at every row/column middle it passes. A shooter that uses its last bullet shrinks
+    /// away; one with bullets left hops to the leftmost free holder slot after its lap.
+    ///
+    /// Win: the board is cleared (bullets == cells, so every shooter is used up at that moment
+    /// too); the popup waits until no bullet is in flight and the last pops have played.
+    /// Lose: a 6th shooter arrives at the full holder; the popup follows its shake.
+    /// Editor-only keys: 1/2/3 load a level, R restart.
     /// </summary>
-    public class GameplayTester : MonoBehaviour
+    public class GameController : MonoBehaviour
     {
         [SerializeField] private LevelCatalog catalog;
         [SerializeField] private BoardView boardView;
@@ -29,6 +33,14 @@ namespace PixelShooting.View
         [SerializeField] private ConveyorView conveyorView;
         [SerializeField] private BulletSystem bullets;
         [SerializeField] private HolderView holderView;
+
+        [Header("HUD")]
+        [SerializeField] private GamePopup popup;
+        [SerializeField] private TMP_Text levelLabel;
+        [Tooltip("After the last bullet lands: time for the last pop / shrink to play.")]
+        [SerializeField] private float winPopupDelay = 0.5f;
+        [Tooltip("After the 6th shooter arrives: time for its shake to play.")]
+        [SerializeField] private float losePopupDelay = 0.5f;
 
         [Header("Conveyor (world units, track centre line)")]
         [SerializeField] private float pathLeft = -4.75f;
@@ -60,8 +72,12 @@ namespace PixelShooting.View
         private readonly Shot[] shots = new Shot[32];
 
         private readonly HolderModel holder = new HolderModel();
-        private bool lost;
         private ShooterView lostView; // the 6th shooter, shaking where it got off
+
+        private enum GameState : byte { Playing, Won, Lost }
+        private GameState state;
+        private float popupTimer;
+        private int levelIndex;
 
         // A tap that reserved a conveyor place; its shooter still waits in place
         // (on top of a queue column, or in a holder slot) until the conveyor gate opens.
@@ -73,6 +89,14 @@ namespace PixelShooting.View
 
         private readonly PendingTap[] pending = new PendingTap[ConveyorModel.Capacity]; // FIFO
         private int pendingCount;
+
+        private void Awake()
+        {
+            // Preallocate DOTween's tween pools once (recycling + safe mode), so gameplay never grows them.
+            DOTween.Init(true, true, LogBehaviour.ErrorsOnly).SetCapacity(200, 50);
+            popup.Init();
+            popup.Button.onClick.AddListener(OnPopupButton); // once: no per-show allocation
+        }
 
         private void Start()
         {
@@ -86,14 +110,20 @@ namespace PixelShooting.View
 
         private void Update()
         {
+#if UNITY_EDITOR
             if (Input.GetKeyDown(KeyCode.Alpha1)) Load(0);
             if (Input.GetKeyDown(KeyCode.Alpha2)) Load(1);
             if (Input.GetKeyDown(KeyCode.Alpha3)) Load(2);
             if (Input.GetKeyDown(KeyCode.R)) Restart();
-            if (Input.GetKeyDown(KeyCode.S)) queueView.Shake(0);
-            if (Input.GetMouseButtonDown(0)) OnTap(Input.mousePosition);
+#endif
+            if (level == null) return;
+            if (state != GameState.Playing)
+            {
+                UpdateEnd();
+                return;
+            }
 
-            if (level == null || lost) return;
+            if (Input.GetMouseButtonDown(0)) OnTap(Input.mousePosition);
             StartPendingHops();
 
             // Order matters: move, then fire at the points passed, then take off finished laps.
@@ -111,11 +141,39 @@ namespace PixelShooting.View
                 ReturnToHolder(exited[i], conveyorView.Remove(exited[i]));
                 exited[i] = null;
             }
+
+            if (state == GameState.Playing && board.IsCleared)
+            {
+                EndLevel(GameState.Won);
+            }
+        }
+
+        private void EndLevel(GameState result)
+        {
+            state = result;
+            popupTimer = 0f;
+        }
+
+        // After a win or loss: wait for the last animations, then show the popup once.
+        private void UpdateEnd()
+        {
+            if (popup.IsShown) return;
+            if (state == GameState.Won && bullets.InFlight > 0) return; // cells still popping
+            popupTimer += Time.deltaTime;
+            if (popupTimer >= (state == GameState.Won ? winPopupDelay : losePopupDelay))
+            {
+                popup.Show(state == GameState.Won);
+            }
+        }
+
+        private void OnPopupButton()
+        {
+            if (state == GameState.Won) Load(levelIndex + 1); // after the last level, wraps to the first
+            else Restart();
         }
 
         private void OnTap(Vector3 screenPosition)
         {
-            if (lost) return;
             Vector3 world = cam.ScreenToWorldPoint(screenPosition);
 
             if (holderView.TryPickSlot(world, out int slot))
@@ -179,6 +237,8 @@ namespace PixelShooting.View
         /// <summary>Sends the bullet; if it was the shooter's last one, the shooter shrinks away.</summary>
         private void ShowShot(in Shot shot)
         {
+            conveyorView.GetView(shot.Shooter).SetBullets(shot.Shooter.BulletsLeft);
+
             Vector2 from = path.Evaluate(shot.Distance);
             Vector3 to = boardView.GetCellWorldPosition(shot.X, shot.Y);
             bullets.Fire(new Vector3(from.x, from.y, to.z), to, level.GetColor(shot.Shooter.ColorIndex), shot.X, shot.Y);
@@ -212,10 +272,9 @@ namespace PixelShooting.View
                 view.ReleaseToPool(); // already lost this frame; one shaking shooter is enough
                 return;
             }
-            lost = true;
             lostView = view;
             view.Shake();
-            Debug.Log("LOST: a 6th shooter arrived at the full holder. Press R to restart.");
+            EndLevel(GameState.Lost);
         }
 
         private bool IsPending(bool fromHolder, int index)
@@ -239,16 +298,27 @@ namespace PixelShooting.View
 
         private void Load(int index)
         {
-            if (index >= catalog.Count) return;
-            TextAsset file = catalog.Get(index);
-            errors.Clear();
-            warnings.Clear();
-            if (!LevelLoader.TryLoad(file.text, file.name, out level, errors, warnings))
+            // Wraps past the last level, and skips any level the validator rejects (logged),
+            // so a bad entry in the catalog can never leave the game without a level.
+            for (int attempt = 0; attempt < catalog.Count; attempt++)
             {
-                Debug.LogError(string.Join("\n", errors), file);
+                int i = (index + attempt) % catalog.Count;
+                TextAsset file = catalog.Get(i);
+                errors.Clear();
+                warnings.Clear();
+                // Load into a local: a failed TryLoad must not wipe the current level.
+                if (!LevelLoader.TryLoad(file.text, file.name, out LevelData loaded, errors, warnings))
+                {
+                    Debug.LogError(string.Join("\n", errors), file);
+                    continue;
+                }
+                level = loaded;
+                levelIndex = i;
+                levelLabel.SetText("Level {0}", i + 1);
+                Restart();
                 return;
             }
-            Restart();
+            Debug.LogError("No valid level in the catalog.", catalog);
         }
 
         private void Restart()
@@ -262,7 +332,8 @@ namespace PixelShooting.View
                 lostView.ReleaseToPool();
                 lostView = null;
             }
-            lost = false;
+            state = GameState.Playing;
+            popup.HideNow();
             bullets.Clear();
             board.Reset(level);
             boardView.Build(board, level);

@@ -22,6 +22,7 @@ static class Program
         Console.WriteLine("== Conveyor ==");               fails += ConveyorTests.Run();
         Console.WriteLine("== Shooting ==");               fails += ShootingTests.Run();
         Console.WriteLine("== Holder ==");                 fails += HolderTests.Run();
+        Console.WriteLine("== Level04 (order matters) =="); fails += Level04Tests.Run();
         Console.WriteLine(fails == 0 ? "\nALL SUITES PASSED" : $"\n{fails} FAILURES");
         return fails == 0 ? 0 : 1;
     }
