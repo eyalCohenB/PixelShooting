@@ -3,7 +3,26 @@
 _Last updated: 2026-10-08_
 
 ## Current step (2026-10-08; resume here)
-**Part 2, stage 6 (Shooting): DONE** and play-tested by the user ("works like magic"). It's committed when the user says "commit". **Next: stage 7 (Holder).** Start it by briefly presenting 2-3 decisions, then ask "you or me?".
+**Part 2, stage 7 (Holder): DONE**, play-tested by the user ("works great") and committed. **Next: stage 8 (Game flow).** Start it by briefly presenting 2-3 decisions, then ask "you or me?".
+
+### Stage 7 summary (decisions 1A, 2A, 3A by the user; all code by Claude at the user's request)
+- **`Core/Holder/HolderModel`:**
+  - 5 fixed slots, no sliding.
+  - `TryAdd(shooter, out slot)` gives the leftmost free slot and returns **false = 6th arrival = lose**.
+  - `Take(slot)` frees a slot. Both set `Shooter.Location`.
+- **1A:** the slot is assigned the moment the rider exits its lap; the hop is only animation.
+- **2A:** the slot is freed only when the holder shooter actually leaves (gate open, hop starts), so nothing can land on a waiting shooter.
+- **3A:** on a loss, the tester logs "LOST", shakes the 6th shooter and freezes until R/1/2/3. **Stage 8 replaces this with the popup.**
+- **`View/HolderView`:**
+  - Slot transforms (`Holder_0..4`) and the view in each slot.
+  - `TryPickSlot` is distance math against `pickRadius`, plus a gizmo.
+  - `Place`, `TakeView`, `Shake` and `Clear`.
+- **Tester:**
+  - Pending taps are a FIFO of `PendingTap {FromHolder, Index}` (a queue column or a holder slot). Holder taps can't be doubled.
+  - `ReturnToHolder` replaces the old placeholder hop to the `5/5` box. The `conveyorStart` field was removed.
+- **Tests:** a Holder suite with 11 checks.
+
+### Stage 6 summary (decisions 1A, 2, 3A by the user; all code by Claude at the user's request)
 
 ### Stage 6 summary (decisions 1A, 2, 3A by the user; all code by Claude at the user's request)
 - **`Core/Shooting/FiringPoints`:**
@@ -65,7 +84,7 @@ _Last updated: 2026-10-08_
 - **Known placeholders/notes:**
   - The exit hop goes to the 5/5 box. `Shooter.Location` is still not set on exit (stage 7).
   - **Path values** (tester Inspector): left -4.75, right 4.75, bottom -1.77, top 8.26, lapEndGap 1.6, speed 5, minSpacing 1.2, hopTime 0.4.
-- **Tests:** `cd Tools/CoreTests && dotnet run` → Level 14, Board 17, Queue 7, Conveyor 33, Shooting 11 checks, all passing.
+- **Tests:** `cd Tools/CoreTests && dotnet run` → Level 14, Board 17, Queue 7, Conveyor 33, Shooting 11, Holder 11 checks, all passing.
 - **Git:** `master`, one commit per stage.
 
 ## Done
@@ -88,7 +107,7 @@ _Last updated: 2026-10-08_
 - [x] **4. Queue:** `QueueModel` (only the top shooter is selectable, the rest shift up) and its view and input
 - [x] **5. Conveyor:** path, capacity 5, no overlap (wait in place + two-sided gate), lap tracking, the `free/5` label, skateboards. Done on 2026-10-08.
 - [x] **6. Shooting** (done 2026-10-08): firing points per row/column, matching the exposed cell, removing the cell on fire, pooled bullets, destroying the shooter when its bullets run out
-- [ ] **7. Holder:** 5 slots, a shooter returns after its lap, shooters can be selected from the holder, the 6th arrival loses
+- [x] **7. Holder** (done 2026-10-08): 5 slots, a shooter returns after its lap, shooters can be selected from the holder, the 6th arrival loses
 - [ ] **8. Game flow:** state machine, win and lose, restart, HUD popup
 - [ ] **9. Polish and verification:** animation pass, Profiler (GC alloc = 0 in gameplay), edge-case playtests, docs
 

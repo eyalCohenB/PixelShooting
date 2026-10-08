@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using DG.Tweening;
 using PixelShooting.Core.Board;
 using PixelShooting.Core.Conveyor;
+using PixelShooting.Core.Holder;
 using PixelShooting.Core.Levels;
 using PixelShooting.Core.Queue;
 using PixelShooting.Core.Shooting;
@@ -12,10 +13,11 @@ namespace PixelShooting.View
     /// <summary>
     /// Temporary debug helper (replaces BoardTester) until the real game flow exists.
     /// Keys: 1/2/3 load a level, R restart, S shake column 0.
-    /// Click/tap a column's top shooter: it reserves a conveyor place (or shakes if full), waits
-    /// in place until the conveyor gate opens, then hops on and rides one lap. The lap ends on the
-    /// left side, just above the entrance; from there it hops onto the conveyor start box and
-    /// returns to the pool (placeholder: stage 7 hops it to the holder instead).
+    /// Click/tap a column's top shooter or a holder shooter: it reserves a conveyor place (or shakes
+    /// if full), waits in place until the conveyor gate opens, then hops on and rides one lap. The
+    /// lap ends on the left side, just above the entrance; from there it hops to the leftmost free
+    /// holder slot. A 6th arrival at a full holder loses: logged, the game freezes until R/1/2/3
+    /// (stage 8 adds the real popup).
     /// While riding, it fires at every row/column middle it passes (ShootingSystem); a shooter
     /// that uses its last bullet is taken off the conveyor and shrinks away.
     /// </summary>
@@ -26,8 +28,7 @@ namespace PixelShooting.View
         [SerializeField] private QueueView queueView;
         [SerializeField] private ConveyorView conveyorView;
         [SerializeField] private BulletSystem bullets;
-        [Tooltip("Placeholder exit-hop target until the holder exists (stage 7).")]
-        [SerializeField] private Transform conveyorStart;
+        [SerializeField] private HolderView holderView;
 
         [Header("Conveyor (world units, track centre line)")]
         [SerializeField] private float pathLeft = -4.75f;
@@ -58,8 +59,19 @@ namespace PixelShooting.View
         private ShootingSystem shooting;
         private readonly Shot[] shots = new Shot[32];
 
-        // Taps that reserved a place but whose shooter still waits in place (FIFO of queue columns).
-        private readonly int[] pendingColumns = new int[ConveyorModel.Capacity];
+        private readonly HolderModel holder = new HolderModel();
+        private bool lost;
+        private ShooterView lostView; // the 6th shooter, shaking where it got off
+
+        // A tap that reserved a conveyor place; its shooter still waits in place
+        // (on top of a queue column, or in a holder slot) until the conveyor gate opens.
+        private struct PendingTap
+        {
+            public bool FromHolder;
+            public int Index; // queue column or holder slot
+        }
+
+        private readonly PendingTap[] pending = new PendingTap[ConveyorModel.Capacity]; // FIFO
         private int pendingCount;
 
         private void Start()
@@ -81,7 +93,7 @@ namespace PixelShooting.View
             if (Input.GetKeyDown(KeyCode.S)) queueView.Shake(0);
             if (Input.GetMouseButtonDown(0)) OnTap(Input.mousePosition);
 
-            if (level == null) return;
+            if (level == null || lost) return;
             StartPendingHops();
 
             // Order matters: move, then fire at the points passed, then take off finished laps.
@@ -96,14 +108,28 @@ namespace PixelShooting.View
             conveyorView.Sync(conveyor);
             for (int i = 0; i < exitCount; i++)
             {
-                HopOff(conveyorView.Remove(exited[i]));
+                ReturnToHolder(exited[i], conveyorView.Remove(exited[i]));
                 exited[i] = null;
             }
         }
 
         private void OnTap(Vector3 screenPosition)
         {
+            if (lost) return;
             Vector3 world = cam.ScreenToWorldPoint(screenPosition);
+
+            if (holderView.TryPickSlot(world, out int slot))
+            {
+                if (IsPending(true, slot)) return; // already waiting for the gate
+                if (!conveyor.TryReserve())
+                {
+                    holderView.Shake(slot); // conveyor full
+                    return;
+                }
+                pending[pendingCount++] = new PendingTap { FromHolder = true, Index = slot };
+                return;
+            }
+
             if (!queueView.TryPickColumn(world, out int column)) return;
 
             // Every pending tap on this column will take one more shooter from it.
@@ -114,7 +140,7 @@ namespace PixelShooting.View
                 queueView.Shake(column); // conveyor full
                 return;
             }
-            pendingColumns[pendingCount++] = column;
+            pending[pendingCount++] = new PendingTap { FromHolder = false, Index = column };
         }
 
         /// <summary>Lets waiting shooters hop on, oldest tap first, while the conveyor gate is open.</summary>
@@ -122,12 +148,22 @@ namespace PixelShooting.View
         {
             while (pendingCount > 0 && conveyor.CanEnter)
             {
-                int column = pendingColumns[0];
-                for (int i = 1; i < pendingCount; i++) pendingColumns[i - 1] = pendingColumns[i];
+                PendingTap tap = pending[0];
+                for (int i = 1; i < pendingCount; i++) pending[i - 1] = pending[i];
                 pendingCount--;
 
-                Shooter shooter = queue.TakeTop(column);
-                ShooterView view = queueView.TakeTop(queue, column);
+                Shooter shooter;
+                ShooterView view;
+                if (tap.FromHolder)
+                {
+                    shooter = holder.Take(tap.Index); // the slot is freed only now, as it leaves
+                    view = holderView.TakeView(tap.Index);
+                }
+                else
+                {
+                    shooter = queue.TakeTop(tap.Index);
+                    view = queueView.TakeTop(queue, tap.Index);
+                }
                 conveyor.Enter(shooter);
                 conveyorView.Add(shooter, view);
 
@@ -155,13 +191,40 @@ namespace PixelShooting.View
             }
         }
 
-        /// <summary>Placeholder until stage 7: hop onto the conveyor start box, then back to the pool.</summary>
-        private void HopOff(ShooterView view)
+        /// <summary>
+        /// A rider finished its lap with bullets left: it gets the leftmost free holder slot right
+        /// now (the hop is only the animation). No free slot = the 6th arrival = lose.
+        /// </summary>
+        private void ReturnToHolder(Shooter shooter, ShooterView view)
         {
-            Vector3 target = conveyorStart.position;
-            target.z = view.CachedTransform.position.z;
-            view.CachedTransform.DOKill();
-            view.CachedTransform.DOJump(target, hopHeight, 1, hopTime).OnComplete(view.ReleaseCallback);
+            Transform t = view.CachedTransform;
+            t.DOKill();
+
+            if (holder.TryAdd(shooter, out int slot))
+            {
+                holderView.Place(slot, view);
+                t.DOJump(holderView.SlotPosition(slot), hopHeight, 1, hopTime);
+                return;
+            }
+
+            if (lostView != null)
+            {
+                view.ReleaseToPool(); // already lost this frame; one shaking shooter is enough
+                return;
+            }
+            lost = true;
+            lostView = view;
+            view.Shake();
+            Debug.Log("LOST: a 6th shooter arrived at the full holder. Press R to restart.");
+        }
+
+        private bool IsPending(bool fromHolder, int index)
+        {
+            for (int i = 0; i < pendingCount; i++)
+            {
+                if (pending[i].FromHolder == fromHolder && pending[i].Index == index) return true;
+            }
+            return false;
         }
 
         private int CountPending(int column)
@@ -169,7 +232,7 @@ namespace PixelShooting.View
             int count = 0;
             for (int i = 0; i < pendingCount; i++)
             {
-                if (pendingColumns[i] == column) count++;
+                if (!pending[i].FromHolder && pending[i].Index == column) count++;
             }
             return count;
         }
@@ -192,6 +255,14 @@ namespace PixelShooting.View
         {
             if (level == null) return;
             ClearConveyor();
+            holderView.Clear();
+            holder.Reset();
+            if (lostView != null)
+            {
+                lostView.ReleaseToPool();
+                lostView = null;
+            }
+            lost = false;
             bullets.Clear();
             board.Reset(level);
             boardView.Build(board, level);

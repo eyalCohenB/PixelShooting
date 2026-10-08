@@ -183,6 +183,14 @@ The assignment was built with Claude Code (Claude Opus 5.5) as a pair programmer
     - One check failed at first. It was a bug in the test (it didn't run long enough to reach the target), not in the code.
     - I play-tested it in Unity: "works like magic".
 
+- **Day 3 (2026-10-08): stage 7, holder.**
+  - Claude presented 3 timing decisions. I picked:
+    - assign the slot when the rider exits (not when the hop lands)
+    - free a slot only when its shooter actually leaves
+    - log, shake and freeze on a loss until the stage 8 popup
+  - I asked Claude to write it: `HolderModel` (11 harness checks), `HolderView` and the tester changes (pending taps can now come from the queue or the holder; the 5/5-box placeholder was replaced).
+  - **Verification:** the harness passes, and I play-tested it in Unity: holder return, re-sending from the holder, and the loss on a 6th arrival.
+
 <!-- Template for each part:
 ### Part N: <title> (<date>)
 - **What I asked:**
