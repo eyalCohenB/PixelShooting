@@ -3,7 +3,36 @@
 _Last updated: 2026-10-08_
 
 ## Current step (2026-10-08; resume here)
-**Part 2, stage 5 (Conveyor): DONE.** The user play-tested it in Unity and it was committed. **Next: stage 6 (Shooting).** Start it by briefly presenting 2-3 decisions, then guide the user (or implement, if they say so).
+**Part 2, stage 6 (Shooting): DONE** and play-tested by the user ("works like magic"). It's committed when the user says "commit". **Next: stage 7 (Holder).** Start it by briefly presenting 2-3 decisions, then ask "you or me?".
+
+### Stage 6 summary (decisions 1A, 2, 3A by the user; all code by Claude at the user's request)
+- **`Core/Shooting/FiringPoints`:**
+  - Per level, one point per line per side, at the cell centres, built in lap order (so already sorted).
+  - The distance on each side comes from the cell centre's x (bottom/top) or y (right/left).
+  - Each rider keeps `NextPoint`, the index of its next point.
+- **`Core/Shooting/ShootingSystem.Fire(Shot[])`:**
+  - For each rider, it processes every point it has passed (and that comes before `LapLength`): `board.TryFire` with the shooter's color, then `BulletsLeft--`.
+  - On the last bullet: `Location = Destroyed` and `conveyor.RemoveAt(i)`.
+  - Writes `Shot {Shooter, X, Y, Distance, ShooterEmptied}` into a caller buffer. If the buffer is full, the rest fire next frame.
+- **`ConveyorModel` changes:**
+  - `Update` is split into `Advance` + `CollectExits`.
+  - **Frame order:** Advance → Fire → CollectExits, so points just before the lap end still fire.
+  - New: `RemoveAt`, `RiderRef` (ref return) and `ConveyorRider.NextPoint`.
+- **`ConveyorPath`:** got `Left`/`Right`/`Bottom`/`Top` getters.
+- **`View/BulletSystem`:**
+  - Pooled sprites (FX layer) moved in one update loop, with a swap-remove array.
+  - When a bullet lands, its cell pops (`BoardView.Pop`).
+  - `InFlight` is for the win check in stage 8.
+- **Tester:**
+  - `ShowShot` fires the bullet from `path.Evaluate(shot.Distance)` to the cell. An emptied shooter is removed from `ConveyorView` (which drops its board) and shrinks away.
+  - `BuildFiringPoints` runs after `BoardView.Build`.
+  - The Space random-shot key was removed (it broke bullets = cells).
+- **Known:**
+  - A dying shooter snaps to its base rotation (polish, stage 9).
+  - On big grids, the bottom row(s) can be below the lap end on the left side, so they can't be shot from the left (only a limitation; they're still reachable from below).
+  - The win check must wait for `bullets.InFlight == 0` (stage 8).
+
+### Stage 5 summary (who wrote what)
 
 ### Stage 5 summary (who wrote what)
 1. **`ConveyorPath`** (Core), written by the user:
@@ -34,9 +63,9 @@ _Last updated: 2026-10-08_
    - There's a gizmo for the path and the lap end, and `ClearConveyor` runs on restart.
 
 - **Known placeholders/notes:**
-  - The exit hop goes to the 5/5 box. Stage 6 needs `ConveyorModel.RemoveAt(i)` for shooters that run out of bullets mid-lap. `Shooter.Location` is still not set on exit (stage 7).
+  - The exit hop goes to the 5/5 box. `Shooter.Location` is still not set on exit (stage 7).
   - **Path values** (tester Inspector): left -4.75, right 4.75, bottom -1.77, top 8.26, lapEndGap 1.6, speed 5, minSpacing 1.2, hopTime 0.4.
-- **Tests:** `cd Tools/CoreTests && dotnet run` → Level 14, Board 17, Queue 7, Conveyor 33 checks, all passing.
+- **Tests:** `cd Tools/CoreTests && dotnet run` → Level 14, Board 17, Queue 7, Conveyor 33, Shooting 11 checks, all passing.
 - **Git:** `master`, one commit per stage.
 
 ## Done
@@ -58,7 +87,7 @@ _Last updated: 2026-10-08_
 - [x] **3. Board:** `BoardModel` (grid, exposed-cell queries) and `BoardView` (cells scaled to fill `BoardArea`)
 - [x] **4. Queue:** `QueueModel` (only the top shooter is selectable, the rest shift up) and its view and input
 - [x] **5. Conveyor:** path, capacity 5, no overlap (wait in place + two-sided gate), lap tracking, the `free/5` label, skateboards. Done on 2026-10-08.
-- [ ] **6. Shooting:** firing points per row/column, matching the exposed cell, removing the cell on fire, pooled bullets, destroying the shooter when its bullets run out
+- [x] **6. Shooting** (done 2026-10-08): firing points per row/column, matching the exposed cell, removing the cell on fire, pooled bullets, destroying the shooter when its bullets run out
 - [ ] **7. Holder:** 5 slots, a shooter returns after its lap, shooters can be selected from the holder, the 6th arrival loses
 - [ ] **8. Game flow:** state machine, win and lose, restart, HUD popup
 - [ ] **9. Polish and verification:** animation pass, Profiler (GC alloc = 0 in gameplay), edge-case playtests, docs

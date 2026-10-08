@@ -4,17 +4,20 @@ using PixelShooting.Core.Board;
 using PixelShooting.Core.Conveyor;
 using PixelShooting.Core.Levels;
 using PixelShooting.Core.Queue;
+using PixelShooting.Core.Shooting;
 using UnityEngine;
 
 namespace PixelShooting.View
 {
     /// <summary>
     /// Temporary debug helper (replaces BoardTester) until the real game flow exists.
-    /// Keys: 1/2/3 load a level, R restart, Space fire a random valid shot, S shake column 0.
+    /// Keys: 1/2/3 load a level, R restart, S shake column 0.
     /// Click/tap a column's top shooter: it reserves a conveyor place (or shakes if full), waits
     /// in place until the conveyor gate opens, then hops on and rides one lap. The lap ends on the
     /// left side, just above the entrance; from there it hops onto the conveyor start box and
     /// returns to the pool (placeholder: stage 7 hops it to the holder instead).
+    /// While riding, it fires at every row/column middle it passes (ShootingSystem); a shooter
+    /// that uses its last bullet is taken off the conveyor and shrinks away.
     /// </summary>
     public class GameplayTester : MonoBehaviour
     {
@@ -22,6 +25,7 @@ namespace PixelShooting.View
         [SerializeField] private BoardView boardView;
         [SerializeField] private QueueView queueView;
         [SerializeField] private ConveyorView conveyorView;
+        [SerializeField] private BulletSystem bullets;
         [Tooltip("Placeholder exit-hop target until the holder exists (stage 7).")]
         [SerializeField] private Transform conveyorStart;
 
@@ -37,6 +41,7 @@ namespace PixelShooting.View
         [SerializeField] private float minSpacing = 1.2f;
         [SerializeField] private float hopTime = 0.4f;
         [SerializeField] private float hopHeight = 1f;
+        [SerializeField] private float deathTime = 0.25f;
 
         private readonly BoardModel board = new BoardModel();
         private readonly QueueModel queue = new QueueModel();
@@ -49,6 +54,10 @@ namespace PixelShooting.View
         private ConveyorModel conveyor;
         private readonly Shooter[] exited = new Shooter[ConveyorModel.Capacity];
 
+        private readonly FiringPoints firingPoints = new FiringPoints();
+        private ShootingSystem shooting;
+        private readonly Shot[] shots = new Shot[32];
+
         // Taps that reserved a place but whose shooter still waits in place (FIFO of queue columns).
         private readonly int[] pendingColumns = new int[ConveyorModel.Capacity];
         private int pendingCount;
@@ -59,6 +68,7 @@ namespace PixelShooting.View
             path = new ConveyorPath(pathLeft, pathRight, pathBottom, pathTop);
             conveyor = new ConveyorModel(path, path.Length - lapEndGap, speed, minSpacing, hopTime);
             conveyorView.Init(path);
+            shooting = new ShootingSystem(conveyor, board, firingPoints);
             Load(0);
         }
 
@@ -68,13 +78,21 @@ namespace PixelShooting.View
             if (Input.GetKeyDown(KeyCode.Alpha2)) Load(1);
             if (Input.GetKeyDown(KeyCode.Alpha3)) Load(2);
             if (Input.GetKeyDown(KeyCode.R)) Restart();
-            if (Input.GetKeyDown(KeyCode.Space)) FireRandom();
             if (Input.GetKeyDown(KeyCode.S)) queueView.Shake(0);
             if (Input.GetMouseButtonDown(0)) OnTap(Input.mousePosition);
 
             if (level == null) return;
             StartPendingHops();
-            int exitCount = conveyor.Update(Time.deltaTime, exited);
+
+            // Order matters: move, then fire at the points passed, then take off finished laps.
+            conveyor.Advance(Time.deltaTime);
+            int shotCount = shooting.Fire(shots);
+            for (int i = 0; i < shotCount; i++)
+            {
+                ShowShot(in shots[i]);
+                shots[i] = default;
+            }
+            int exitCount = conveyor.CollectExits(exited);
             conveyorView.Sync(conveyor);
             for (int i = 0; i < exitCount; i++)
             {
@@ -122,6 +140,21 @@ namespace PixelShooting.View
             }
         }
 
+        /// <summary>Sends the bullet; if it was the shooter's last one, the shooter shrinks away.</summary>
+        private void ShowShot(in Shot shot)
+        {
+            Vector2 from = path.Evaluate(shot.Distance);
+            Vector3 to = boardView.GetCellWorldPosition(shot.X, shot.Y);
+            bullets.Fire(new Vector3(from.x, from.y, to.z), to, level.GetColor(shot.Shooter.ColorIndex), shot.X, shot.Y);
+
+            if (shot.ShooterEmptied)
+            {
+                ShooterView view = conveyorView.Remove(shot.Shooter); // also drops its skateboard
+                view.CachedTransform.DOKill();
+                view.CachedTransform.DOScale(0f, deathTime).SetEase(Ease.InBack).OnComplete(view.ReleaseCallback);
+            }
+        }
+
         /// <summary>Placeholder until stage 7: hop onto the conveyor start box, then back to the pool.</summary>
         private void HopOff(ShooterView view)
         {
@@ -159,10 +192,20 @@ namespace PixelShooting.View
         {
             if (level == null) return;
             ClearConveyor();
+            bullets.Clear();
             board.Reset(level);
             boardView.Build(board, level);
+            BuildFiringPoints();
             queue.Reset(level);
             queueView.Build(queue, level);
+        }
+
+        // Firing points depend on where the board's cells are, so rebuild them for every level.
+        private void BuildFiringPoints()
+        {
+            Vector3 firstCell = boardView.GetCellWorldPosition(0, 0);
+            float cellSize = boardView.CellSize * boardView.transform.lossyScale.x;
+            firingPoints.Build(path, firstCell.x, firstCell.y, cellSize, board.Width, board.Height);
         }
 
         private void ClearConveyor()
@@ -187,22 +230,6 @@ namespace PixelShooting.View
             Gizmos.DrawLine(new Vector3(pathLeft, pathTop), new Vector3(pathLeft, pathBottom));
             Gizmos.color = Color.red;
             Gizmos.DrawWireSphere(p.Evaluate(p.Length - lapEndGap), 0.3f);
-        }
-
-        private void FireRandom()
-        {
-            if (level == null || board.IsCleared) return;
-            for (int attempt = 0; attempt < 200; attempt++)
-            {
-                var side = (BoardSide)Random.Range(0, 4);
-                int line = Random.Range(0, board.LineCount(side));
-                if (!board.TryGetExposed(side, line, out int x, out int y)) continue;
-                if (board.TryFire(side, line, (byte)board.GetCell(x, y), out x, out y))
-                {
-                    boardView.Pop(x, y);
-                    return;
-                }
-            }
         }
     }
 }

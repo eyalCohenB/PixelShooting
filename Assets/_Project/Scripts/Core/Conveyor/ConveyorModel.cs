@@ -11,6 +11,8 @@ namespace PixelShooting.Core.Conveyor
     {
         public Shooter Shooter;
         public float Distance;
+        /// <summary>Index of the next firing point this rider will reach (see Shooting.FiringPoints).</summary>
+        public int NextPoint;
     }
 
     /// <summary>
@@ -48,6 +50,8 @@ namespace PixelShooting.Core.Conveyor
         /// <summary>Distance along the path where a rider's lap ends and it gets off.</summary>
         public float LapLength => lapLength;
         public ConveyorRider GetRider(int i) => riders[i];
+        /// <summary>Direct access to a rider, so the shooting system can advance NextPoint in place.</summary>
+        public ref ConveyorRider RiderRef(int i) => ref riders[i];
 
         /// <param name="lapLength">Where the lap ends; clamped to (0, path.Length].</param>
         public ConveyorModel(ConveyorPath path, float lapLength, float speed, float minSpacing, float hopTime)
@@ -95,31 +99,54 @@ namespace PixelShooting.Core.Conveyor
         }
 
         /// <summary>
-        /// Moves riders forward and writes the shooters that finished their lap into 'exited'
-        /// (size >= Capacity, owned by the caller). Returns how many exited.
+        /// Moves riders forward, then writes the shooters that finished their lap into 'exited'.
+        /// Same as Advance + CollectExits; use those two when shooting must happen in between.
         /// </summary>
         public int Update(float dt, Shooter[] exited)
         {
-            int exitCount = 0;
+            Advance(dt);
+            return CollectExits(exited);
+        }
+
+        /// <summary>Moves every rider forward by speed * dt.</summary>
+        public void Advance(float dt)
+        {
             float step = speed * dt;
             for (int i = 0; i < riderCount; i++)
             {
                 riders[i].Distance += step;
             }
+        }
 
+        /// <summary>
+        /// Removes riders that reached LapLength and writes their shooters into 'exited'
+        /// (size >= Capacity, owned by the caller). Returns how many exited.
+        /// </summary>
+        public int CollectExits(Shooter[] exited)
+        {
+            int exitCount = 0;
             // The oldest is always the furthest along, so exits only ever happen at index 0.
             while (riderCount > 0 && riders[0].Distance >= lapLength)
             {
                 exited[exitCount++] = riders[0].Shooter;
-                for (int j = 1; j < riderCount; j++)
-                {
-                    riders[j - 1] = riders[j];
-                }
-                riderCount--;
-                riders[riderCount] = default; // don't keep a reference to the shooter
-                reserved--;
+                RemoveAt(0);
             }
             return exitCount;
+        }
+
+        /// <summary>
+        /// Takes a rider off the conveyor (lap done, or out of bullets) and frees its place.
+        /// Removing a rider only makes a gap bigger, so it can never cause an overlap.
+        /// </summary>
+        public void RemoveAt(int index)
+        {
+            for (int j = index + 1; j < riderCount; j++)
+            {
+                riders[j - 1] = riders[j];
+            }
+            riderCount--;
+            riders[riderCount] = default; // don't keep a reference to the shooter
+            reserved--;
         }
 
         public void Reset()

@@ -122,6 +122,56 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &51498429
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 51498431}
+  - component: {fileID: 51498430}
+  m_Layer: 0
+  m_Name: Bullets
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &51498430
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 51498429}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78b041ee103ff8841a59535c51464d59, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  boardView: {fileID: 1121100637}
+  sprite: {fileID: -2413806693520163455, guid: be63bc1dd11921a4abffd974c656841c, type: 3}
+  size: 0.25
+  speed: 25
+  sortingLayer: FX
+  prewarm: 32
+--- !u!4 &51498431
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 51498429}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.7033911, y: -2.2533715, z: -9.917989}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &94523976
 GameObject:
   m_ObjectHideFlags: 0
@@ -1020,6 +1070,7 @@ MonoBehaviour:
   boardView: {fileID: 1121100637}
   queueView: {fileID: 1854718852}
   conveyorView: {fileID: 1759607615}
+  bullets: {fileID: 51498430}
   conveyorStart: {fileID: 415036727}
   pathLeft: -4.75
   pathRight: 4.75
@@ -1030,6 +1081,7 @@ MonoBehaviour:
   minSpacing: 1.2
   hopTime: 0.4
   hopHeight: 1
+  deathTime: 0.25
 --- !u!1 &1355668842
 GameObject:
   m_ObjectHideFlags: 0
@@ -1658,3 +1710,4 @@ SceneRoots:
   - {fileID: 1300127654}
   - {fileID: 1781842775}
   - {fileID: 1818940790}
+  - {fileID: 51498431}

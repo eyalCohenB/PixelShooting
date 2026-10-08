@@ -169,6 +169,20 @@ The assignment was built with Claude Code (Claude Opus 5.5) as a pair programmer
     - I made the skateboard prefab, tuned its scale and play-tested it. Everything works as expected.
   - **Verification:** the .NET harness (Conveyor 33/33, every suite passing) and a Unity play-test by me.
 
+- **Day 3 (2026-10-08): stage 6, shooting.**
+  - Claude presented 3 decisions. I picked:
+    - precomputed firing points per level, with a "next point" index per rider
+    - instant logical removal of the cell, with a pooled bullet that animates the hit
+    - immediate removal from the conveyor when a shooter runs out of bullets
+  - Claude also flagged a limitation of our shortened lap: on big grids, the bottom row can't be shot from the left side.
+  - I asked Claude to write everything:
+    - `FiringPoints`, `ShootingSystem`, the `ConveyorModel` split (`Advance`/`CollectExits` + `RemoveAt`), `BulletSystem`, and the tester wiring.
+    - Claude also removed the old random-shot debug key, because it broke the bullets = cells rule.
+  - **Verification:**
+    - 11 new harness checks, including a full Level03 simulation that checks bullets left == cells left at every frame, and 0 allocations.
+    - One check failed at first. It was a bug in the test (it didn't run long enough to reach the target), not in the code.
+    - I play-tested it in Unity: "works like magic".
+
 <!-- Template for each part:
 ### Part N: <title> (<date>)
 - **What I asked:**

@@ -12,6 +12,10 @@ namespace PixelShooting.Core.Conveyor
         private readonly float width, height;
 
         public float Length { get; }
+        public float Left => left;
+        public float Right => right;
+        public float Bottom => bottom;
+        public float Top => top;
 
         public ConveyorPath(float left, float right, float bottom, float top)
         {
