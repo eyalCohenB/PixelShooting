@@ -137,6 +137,38 @@ The assignment was built with Claude Code (Claude Opus 5.5) as a pair programmer
   - Claude saved these preferences to its memory and to `CLAUDE.md`, so the next session continues the same way.
   - Claude moved its ad-hoc test harness into the repo (`Tools/CoreTests`), so the tests survive between sessions.
 
+- **Day 2 (2026-10-06), stage 5 conveyor: I switched to writing the code myself.**
+  - I wanted to write the gameplay code myself so I can explain it. But I'm not very experienced in C#/Unity, and I kept getting stuck.
+  - So Claude now acts as a guide:
+    - It splits each stage into small steps, one file each.
+    - For each step it gives a short explanation of the idea, a skeleton with numbered TODOs, and concrete hints.
+    - Then it reviews what I wrote.
+  - **`ConveyorPath`:** I wrote it from the skeleton. Claude's review found 2 bugs and explained them:
+    - `left = left;` assigned the parameter to itself, because the parameter hides the field. It needed `this.left`.
+    - The width was negative (`left - right`).
+  - Claude also suggested clamping the distance instead of logging an error and returning `Vector2.zero`, because the last frame of a lap can overshoot `Length`.
+  - I chose sharp corners over rounded ones for simplicity.
+  - **Verification:** Claude added `Vector2`/`Mathf` to the test shim and wrote a `ConveyorTests` suite (corners, the direction of each side, the full lap, clamping). 11/11 pass.
+  - **Next:** I write `ConveyorModel` from Claude's skeleton (capacity reserved on tap, a waiting list, the entry gate, exits).
+
+- **Day 3 (2026-10-08): stage 5 finished.**
+  - **`ConveyorModel`:**
+    - I wrote it from Claude's skeleton. Claude reviewed it (no logic bugs) and added harness tests: the gate, FIFO order, exits, and a 20k-step random simulation that checks gaps and allocations.
+    - While planning the view, Claude found two overlap holes in our design:
+      - Shooters landing while the gate was closed would stack at the start.
+      - A rider finishing its lap could meet a new rider at the start corner, because the gate only looked ahead.
+    - It proposed **"wait in place"**: a tap only reserves; the shooter stays in its spot until the gate opens; the hop counts as part of the ride (negative distance); and the gate checks both neighbours.
+    - I asked why a wait is needed at all if taps happen at different times. Claude explained that the gap equals speed × time between taps, so two fast taps would ride overlapped for the whole lap. The gate just enforces a minimum time between entries.
+    - I chose this design and asked Claude to implement it. The tests grew to 30 checks, all passing.
+  - **`ConveyorView`:**
+    - I wrote it from a skeleton. Claude's review found two compile errors (code outside the loop, and the type name) and two logic bugs (a missing `-90°` in the facing angle, and the base rotation being overwritten on every add).
+    - A Unity-only compile error, "Rider is a namespace", came from a global `Rider` namespace in Unity. The struct was renamed `ConveyorRider`.
+  - **Lap end:** I sketched on a screenshot where riders should get off (the left side, above the entrance) and where they hop to. Claude added `LapLength` to the model (+3 tests), and the exit hop plus a tuning gizmo to the tester.
+  - **Wiring and skateboards:**
+    - I asked Claude to write the `GameplayTester` wiring and the skateboard pool and view. Boards are children of their shooter while riding, and pooled with cached callbacks.
+    - I made the skateboard prefab, tuned its scale and play-tested it. Everything works as expected.
+  - **Verification:** the .NET harness (Conveyor 33/33, every suite passing) and a Unity play-test by me.
+
 <!-- Template for each part:
 ### Part N: <title> (<date>)
 - **What I asked:**

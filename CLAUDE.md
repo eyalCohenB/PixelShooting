@@ -4,13 +4,19 @@ Project context for Claude Code sessions. Keep this file updated after every com
 
 ## Start here (new session)
 1. Read this whole file, then `PROJECT_STATUS.md` (current step and checklist) and `AI_USAGE.md` (the log you must keep appending to). Also read the memory index (`MEMORY.md`), which holds user preferences.
-2. **Where we are (end of 2026-10-05):**
+2. **Where we are (day 3, 2026-10-08):**
    - **Part 1 (Scene Setup): done.**
-   - **Part 2 (Core Gameplay): stages 0-4 done and committed. Stage 5 (Conveyor) is designed but has no code yet.**
-   - **The first thing to do next session:** ask the user, in one line, "Should I implement stage 5, or do you want to write part of it?" The decisions are already made (A/A/A, see "Conveyor" below). Then build it.
-3. **How the user wants to work** (this changed during day 1; it overrides "Learning mode" below):
+   - **Part 2 (Core Gameplay): stages 0-5 done and committed.** Stage 5 (Conveyor) was finished and committed on 2026-10-08.
+   - **The first thing to do next session: start stage 6 (Shooting).** Briefly present 2-3 decisions with a recommendation, then guide the user (or implement it if they say "you do it" / "just implement it"). The details are in `PROJECT_STATUS.md`.
+   - On day 3 the user delegated more again: "you do it" for the model redesign, the tester wiring and the skateboards. Always ask "you or me?" for each step.
+3. **How the user wants to work** (updated on day 2; this overrides "Learning mode" below):
+   - **From stage 5 on, the USER writes the gameplay code, and Claude guides.** The user isn't very experienced in C#/Unity and gets stuck on big tasks, but wants to be able to explain the code in the interview. So:
+     - Split the work into small steps (one file or class each).
+     - For each step, give a short "idea" explanation, a skeleton with numbered TODOs, and concrete hints (formulas, C# gotchas such as `this.` field shadowing or struct copies in a `List`).
+     - When the user says "check X": review it and list the bugs with explanations and the fixed line. Let the user apply the fix.
+     - Claude may write test-harness code (`Tools/CoreTests`, shim additions), run it, and report the results.
    - **Keep answers SHORT.** A few bullets and one recommendation. The user is tired of long messages.
-   - **Go stage by stage.** For each stage: briefly present 2-3 decisions with a recommendation, let the user choose, implement when asked (the user usually says "just implement it"), then explain briefly how it works.
+   - **Go stage by stage.** For each stage: briefly present 2-3 decisions with a recommendation and let the user choose. Then guide the user through writing it, as described above. Implement it yourself only if the user explicitly says "just implement it".
    - For Core code: test in the .NET harness (`Tools/CoreTests`, run `dotnet run`). Then give the user short Unity setup steps and things to check.
    - After the user confirms it works in Unity: update the 3 docs, then commit **only when the user says "commit"**. Use one commit per stage and end messages with the Co-Authored-By line.
    - Don't suggest resizing sprites to match the mock exactly.
@@ -31,7 +37,7 @@ Project context for Claude Code sessions. Keep this file updated after every com
      - `ShooterPool` (`ShooterViewPool`)
      - A tester object with `GameplayTester`
    - Sorting layers: Background, Board, Gameplay, FX. DOTween is installed (`Assets/Plugins/Demigiant`), with recycling and safe mode on.
-   - Temporary debug components: `GameplayTester` (keys 1/2/3 load a level, R restarts, Space fires a random shot, S shakes, click takes a queue shooter) and `LevelLoadTester`. Both get replaced by the real game flow in stage 8.
+   - Temporary debug components: `GameplayTester` (keys 1/2/3 load a level, R restarts, Space fires a random shot, S shakes, click takes a queue shooter and sends it round the conveyor; it also owns the conveyor path settings and a path gizmo) and `LevelLoadTester`. Both get replaced by the real game flow in stage 8.
    - Git: on `master`. One commit per finished stage (see `git log`).
 5. **Earlier session note:** `C:\Users\ecohen\source\repos\MyProject` (C/SDL3) is unrelated, so ignore it.
 
@@ -167,7 +173,8 @@ UI/
   - `LevelData`: immutable, from JSON.
   - `BoardModel`: live cells and exposed-cell queries.
   - `Shooter` and `QueueModel`.
-  - Still to come: `ConveyorModel` (stage 5), shooting (6), `HolderModel` (7), game flow (8).
+  - `ConveyorPath` and `ConveyorModel` (stage 5).
+  - Still to come: shooting (6), `HolderModel` (7), game flow (8).
 - **View (MonoBehaviours):**
   - `BoardView`, `QueueView`, `ShooterView` and `ShooterViewPool`, `CameraFitter`, `SafeAreaPanel`.
   - They read the models and animate with DOTween.
@@ -273,29 +280,46 @@ UI/
     - `TryPickColumn(worldPoint)` is a math hit-test.
   - `GameplayTester` replaces `BoardTester`: keys 1/2/3 load, R restarts, Space fires, S shakes, and a click takes a shooter, which jumps to `ConveyorStart`.
 
-## Conveyor (Part 2, stage 5: DECIDED, NOT IMPLEMENTED YET; next session starts here)
-- **Path:**
-  - A rounded rectangle computed in code along the track's center line (about x ±4.75, y -1.77 to 8.26), tuned with a gizmo.
-  - Positions are measured as distance along the path. It starts and ends at `ConveyorStart` (bottom-left) and runs counter-clockwise.
-- **No overlap, by construction:**
-  - All riders move at the **same constant speed**, so the gaps between them never change.
-  - The only risk is the entrance, so a new rider enters only when the previous rider is ≥ `minSpacing` ahead. Fast taps just land a moment later.
-- **Capacity of 5, reserved at tap time:** the label (`free/5`) updates immediately. A tap at 0 free makes the shooter shake.
-- **Also in this stage:**
-  - Pooled skateboards: attached when a shooter boards, released when it leaves or is destroyed.
-  - Shooters face the board.
-  - When a rider's distance reaches the lap length, it leaves the conveyor (the holder is stage 7).
-  - The conveyor holds the firing point (path distance) of every row and column; the shooting itself is stage 6.
-- **Implementation sketch (proposed by Claude, not yet built):**
-  - `Core/Conveyor/ConveyorPath`: rounded-rect math, `Length`, `Evaluate(distance) -> position + tangent`.
-  - `Core/Conveyor/ConveyorModel`: capacity 5, `Free` count, `TryReserve()` at tap time, and rider entries `{Shooter, distance}` in a fixed array of 5.
-    - `Update(dt)` advances every rider by `speed*dt`. A rider whose distance reaches `Length` exits.
-    - Entry gate: a rider enters only when the previous rider's distance is >= `minSpacing`.
-  - `View/ConveyorView`:
-    - Moves `ShooterView`s along the path and rotates them to face the board.
-    - Attaches pooled skateboards (`Skateboard.fbx` prefab).
-    - Updates `CapacityLabel` to `free/5`, only when the value changes (no per-frame strings).
-  - `GameplayTester`: a tap reserves a place (or shakes if full), hops the shooter to the start, and the conveyor takes over.
+## Conveyor (Part 2, stage 5: DONE on 2026-10-08)
+- **Files:**
+  - `Core/Conveyor/ConveyorPath.cs` and `ConveyorModel.cs` (`ConveyorRider` struct).
+  - `View/ConveyorView.cs`, `View/SkateboardPool.cs` and `View/SkateboardView.cs`. The wiring lives in `GameplayTester`.
+- **Path (`ConveyorPath`, written by the user):**
+  - A **sharp-cornered rectangle** on the track's centre line (left -4.75, right 4.75, bottom -1.77, top 8.26, set in the tester's Inspector).
+  - Positions are a single number: the distance from the bottom-left corner, counter-clockwise.
+  - `Evaluate(distance)` clamps to `[0, Length]`.
+- **Lap end:**
+  - `ConveyorModel.LapLength = path.Length - lapEndGap` (1.6). Riders get off on the **left side, just above the entrance** (the user's request), then hop away.
+  - For now they hop to the `ConveyorStart` box and are released. **Stage 7 replaces that with the holder.**
+- **No overlap, by construction ("wait in place", redesigned by Claude on day 3):**
+  - **Same speed:** all riders move at the same constant speed, so the gaps between them never change once set.
+  - **Reserve on tap:** a tap only reserves a place (`TryReserve`; the shooter shakes if full). The shooter **waits in its own spot** (queue top, later holder slot) until `CanEnter`, so nothing ever waits on the track.
+  - **The hop is part of the ride:**
+    - `Enter` adds the rider at `Distance = -approach`, where `approach = speed * hopTime`.
+    - The DOTween hop takes `HopDuration`, so it lands exactly at distance 0. From there `ConveyorView.Sync` takes over and skips negative distances.
+  - **Two-sided gate:**
+    - the newest rider is ≥ `minSpacing` ahead of the new one
+    - **and** the oldest rider (coming round behind the entrance) is ≥ `minSpacing` behind
+    - The behind check is measured to the full path end, so it stays safe even with the shortened lap.
+  - **Why a gate at all:** two taps 0.1 s apart would ride overlapped for the whole lap (gap = speed × Δt). The gate enforces a minimum time between entries of `minSpacing / speed`.
+- **Model data:**
+  - `ConveyorRider[5]` in entry order: `[0]` is the oldest and furthest along, and exits first.
+  - Exits shift the array (5 items).
+  - `reserved` counts riders plus pending taps. `Free = 5 - reserved` and `Pending = reserved - riderCount`.
+  - `Update(dt, exited[])` writes exiting shooters into a caller-owned array: 0 allocations.
+- **View:**
+  - `ConveyorView` keeps a `Dictionary<Shooter, ShooterView>` (no boxing, since the key is a class).
+  - It faces riders toward the board: `n = (-t.y, t.x)` (left of the travel direction), `angle = atan2(n) - 90`, applied on top of the prefab's base rotation. `Remove` resets the rotation.
+  - The label uses `SetText("{0}/5", free)`, only when the value changes.
+- **Skateboards:**
+  - `SkateboardPool` prewarms 8, and also holds the board's local pose under the shooter.
+  - While riding, a board is a **child of its shooter**, so it follows the shooter with no per-frame code. `Detach` keeps its world pose, scales it out, and releases it through a cached callback.
+- **Tester (`GameplayTester`):**
+  - A FIFO `int[]` of pending columns.
+  - Each frame: while pending and `CanEnter`, it calls `TakeTop` + `Enter` + `Add` + `DOJump`. Then `Update` → `Sync`, and exits `HopOff`.
+  - Restart calls `ClearConveyor`. Tapping a column more times than it has shooters is ignored.
+- **Unity gotcha:** a type named `Rider` is hidden by a global `Rider` namespace in the Unity project (from the IDE package). Avoid that name.
+- **For stage 6:** add `ConveyorModel.RemoveAt(i)` (shift, `riderCount--`, `reserved--`) for shooters that run out of bullets mid-lap. Firing points are the path distances where a rider crosses the middle of each row/column.
 
 ## Animation (Part 2, stage 1, decided 2026-10-05)
 - **DOTween** handles one-off A→B animations:
@@ -317,8 +341,9 @@ UI/
 
 ## Testing
 - **`Tools/CoreTests/`** is a .NET 10 console harness, outside `Assets/` so Unity ignores it. Run it with `dotnet run` in that folder.
-  - It compiles the Core sources directly (`Levels`, `Board`, `Queue`) against `UnityShim.cs`, which stands in for `Color`, `Color32`, `ColorUtility` and `JsonUtility`.
-  - Suites: `LevelTests` (14 checks), `BoardTests` (17, including 42k random queries compared against brute force and 0-allocation checks), `QueueTests` (7).
+  - It compiles the Core sources directly (`Levels`, `Board`, `Queue`, `Conveyor`) against `UnityShim.cs`, which stands in for `Color`, `Color32`, `ColorUtility` and `JsonUtility`.
+  - Suites: `LevelTests` (14 checks), `BoardTests` (17, including 42k random queries compared against brute force and 0-allocation checks), `QueueTests` (7), `ConveyorTests` (33: path, gate, two-sided gap, lap end, 20k-step random sim, 0 allocations).
+  - The shim also has a minimal `Vector2` and `Mathf.Clamp`. Extend it when Core uses more of UnityEngine.
   - **When adding Core code, add a suite and add its folder to `CoreTests.csproj`.** (`.gitignore` ignores `*.csproj` but has an exception for `Tools/**`.)
 - Unity is usually open while we work, so batch mode can't run. The user tests the View in Play mode.
 - Shim difference: Unity's `TryParseHtmlString` also accepts named colors like "red". The shim doesn't.

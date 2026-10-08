@@ -19,6 +19,7 @@ static class Program
         Console.WriteLine("== Level loading/validation =="); fails += LevelTests.Run();
         Console.WriteLine("== Board model ==");            fails += BoardTests.Run();
         Console.WriteLine("== Queue model ==");            fails += QueueTests.Run();
+        Console.WriteLine("== Conveyor ==");               fails += ConveyorTests.Run();
         Console.WriteLine(fails == 0 ? "\nALL SUITES PASSED" : $"\n{fails} FAILURES");
         return fails == 0 ? 0 : 1;
     }

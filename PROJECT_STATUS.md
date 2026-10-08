@@ -1,16 +1,43 @@
 # Project Status
 
-_Last updated: 2026-10-05_
+_Last updated: 2026-10-08_
 
-## Current step (end of day 1, 2026-10-05; resume here)
-**Part 2, stage 5 (Conveyor): decisions made (A/A/A), no code yet.**
-- **Next action:** ask the user "Should I implement stage 5, or do you want to write part of it?", then build it using the sketch in `CLAUDE.md` → Conveyor:
-  1. `ConveyorPath` and `ConveyorModel` (Core), with a `ConveyorTests` suite in `Tools/CoreTests`.
-  2. `ConveyorView`, skateboard pool and `CapacityLabel` updates (View).
-  3. Wire it into `GameplayTester`. The user does the Unity setup (skateboard prefab etc.) and play-tests.
-- After that: stage 6 (Shooting), 7 (Holder), 8 (Game flow), 9 (Polish/Profiler).
-- **Git:** `master`, one commit per stage. Last stage commit: `856615b` "Shooter queue with pooled shooter views". End-of-day doc updates and `Tools/CoreTests` are uncommitted unless the user said to commit.
-- **Tests:** `cd Tools/CoreTests && dotnet run` → Level 14, Board 17, Queue 7 checks, all passing.
+## Current step (2026-10-08; resume here)
+**Part 2, stage 5 (Conveyor): DONE.** The user play-tested it in Unity and it was committed. **Next: stage 6 (Shooting).** Start it by briefly presenting 2-3 decisions, then guide the user (or implement, if they say so).
+
+### Stage 5 summary (who wrote what)
+1. **`ConveyorPath`** (Core), written by the user:
+   - Claude's review found `this.` shadowing and a negative width.
+   - A sharp rectangle; `Evaluate` clamps.
+2. **`ConveyorModel`** (Core):
+   - The user wrote the first version (a waiting list at the start).
+   - Claude redesigned it to **"wait in place"** after finding two overlap holes:
+     - stacking at the start
+     - a finishing rider meeting a new rider at the corner
+   - **How it works now:**
+     - A tap reserves a place, and the shooter waits in its queue/holder spot until `CanEnter`.
+     - `Enter` adds the rider at `-approach` (the hop is part of the ride).
+     - The gate checks the rider ahead and the one behind.
+     - `LapLength` lets the lap end early: riders get off on the left side, above the entrance (`lapEndGap` in the tester).
+   - `Rider` was renamed `ConveyorRider` (it clashed with Unity's global `Rider` namespace).
+3. **`ConveyorView`** (View):
+   - Written by the user and reviewed.
+   - It positions riders, faces them toward the board (the normal to the left of the travel direction), and sets the `free/5` label with allocation-free `SetText`.
+   - It skips riders still hopping on.
+4. **Skateboards**, written by Claude:
+   - `SkateboardPool` (prewarm 8; it also holds the pose under the shooter) and `SkateboardView`.
+   - A board is a child of its shooter while riding. On exit it scales out where it is and returns to the pool.
+   - The user made the prefab and tuned the scale.
+5. **`GameplayTester` wiring**, written by Claude:
+   - A FIFO of pending taps (columns). `StartPendingHops` runs while `CanEnter`, then `Update` → `Sync`.
+   - Shooters that exit hop to `ConveyorStart` and are released. **This is a placeholder: stage 7 hops them to the holder.**
+   - There's a gizmo for the path and the lap end, and `ClearConveyor` runs on restart.
+
+- **Known placeholders/notes:**
+  - The exit hop goes to the 5/5 box. Stage 6 needs `ConveyorModel.RemoveAt(i)` for shooters that run out of bullets mid-lap. `Shooter.Location` is still not set on exit (stage 7).
+  - **Path values** (tester Inspector): left -4.75, right 4.75, bottom -1.77, top 8.26, lapEndGap 1.6, speed 5, minSpacing 1.2, hopTime 0.4.
+- **Tests:** `cd Tools/CoreTests && dotnet run` → Level 14, Board 17, Queue 7, Conveyor 33 checks, all passing.
+- **Git:** `master`, one commit per stage.
 
 ## Done
 - [x] Setup: rubric, documentation rules, asset inventory, learning mode
@@ -30,7 +57,7 @@ _Last updated: 2026-10-05_
 - [x] **2. Level data:** JSON schema, DTO, loader, validation (bullets = cells), 2–3 sample levels
 - [x] **3. Board:** `BoardModel` (grid, exposed-cell queries) and `BoardView` (cells scaled to fill `BoardArea`)
 - [x] **4. Queue:** `QueueModel` (only the top shooter is selectable, the rest shift up) and its view and input
-- [ ] **5. Conveyor:** path, capacity 5, no overlap, lap tracking, the `free/5` label, skateboards. **Decided A/A/A, not built.**
+- [x] **5. Conveyor:** path, capacity 5, no overlap (wait in place + two-sided gate), lap tracking, the `free/5` label, skateboards. Done on 2026-10-08.
 - [ ] **6. Shooting:** firing points per row/column, matching the exposed cell, removing the cell on fire, pooled bullets, destroying the shooter when its bullets run out
 - [ ] **7. Holder:** 5 slots, a shooter returns after its lap, shooters can be selected from the holder, the 6th arrival loses
 - [ ] **8. Game flow:** state machine, win and lose, restart, HUD popup

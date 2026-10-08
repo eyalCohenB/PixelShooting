@@ -11,5 +11,6 @@
     <Compile Include="../../Assets/_Project/Scripts/Core/Levels/*.cs" Exclude="../../Assets/_Project/Scripts/Core/Levels/LevelCatalog.cs" />
     <Compile Include="../../Assets/_Project/Scripts/Core/Board/*.cs" />
     <Compile Include="../../Assets/_Project/Scripts/Core/Queue/*.cs" />
+    <Compile Include="../../Assets/_Project/Scripts/Core/Conveyor/*.cs" />
   </ItemGroup>
 </Project>
