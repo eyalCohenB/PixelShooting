@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DG.Tweening;
 using PixelShooting.Core.Conveyor;
 using PixelShooting.Core.Queue;
 using TMPro;
@@ -38,6 +39,7 @@ namespace PixelShooting.View
                 baseRotation = view.CachedTransform.rotation;
                 hasBaseRotation = true; 
             }
+            view.OnTrack = false;
             views.Add(shooter, view);
 
             SkateboardView board = skateboards.Get();
@@ -71,6 +73,13 @@ namespace PixelShooting.View
                 ConveyorRider r = model.GetRider(i);
                 if (r.Distance < 0f) continue; // still hopping on; DOTween moves it
                 ShooterView v = views[r.Shooter];
+                if (!v.OnTrack)
+                {
+                    // Landed: stop the hop tween once, so it never fights Sync (e.g. if the speed
+                    // changed mid-hop and the model reached 0 before the tween finished).
+                    v.OnTrack = true;
+                    v.CachedTransform.DOKill();
+                }
                 Vector2 p = path.Evaluate(r.Distance);
                 v.CachedTransform.position = new Vector3(p.x, p.y, shooterZ);
             

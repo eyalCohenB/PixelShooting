@@ -1575,6 +1575,8 @@ MonoBehaviour:
   hopTime: 0.4
   hopHeight: 1
   deathTime: 0.25
+  loopShooterCount: 5
+  loopSpeedMultiplier: 2
 --- !u!1 &1355668842
 GameObject:
   m_ObjectHideFlags: 0
@@ -2299,6 +2301,14 @@ MonoBehaviour:
   button: {fileID: 1123247862}
   buttonLabel: {fileID: 2140779692}
   showTime: 0.3
+  cardSize: {x: 900, y: 760}
+  buttonSize: {x: 600, y: 190}
+  dimColor: {r: 0.05, g: 0.08, b: 0.12, a: 0.72}
+  cardColor: {r: 1, g: 0.972549, b: 0.92156863, a: 1}
+  winColor: {r: 0.29803923, g: 0.7294118, b: 0.32941177, a: 1}
+  loseColor: {r: 0.9411765, g: 0.42352942, b: 0.2509804, a: 1}
+  titleColor: {r: 1, g: 1, b: 1, a: 1}
+  subtitleColor: {r: 0.43137255, g: 0.32941177, b: 0.23529412, a: 1}
 --- !u!1 &2140779690
 GameObject:
   m_ObjectHideFlags: 0

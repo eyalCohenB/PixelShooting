@@ -23,6 +23,12 @@ namespace PixelShooting.View
     /// Win: the board is cleared (bullets == cells, so every shooter is used up at that moment
     /// too); the popup waits until no bullet is in flight and the last pops have played.
     /// Lose: a 6th shooter arrives at the full holder; the popup follows its shake.
+    ///
+    /// Loop finale (Part 3 bonus): when the shooters still alive drop to loopShooterCount (5),
+    /// input locks, every holder/queue shooter boards one by one through the normal gate, and the
+    /// conveyor loops at speed x loopSpeedMultiplier until the board is clear. It always wins:
+    /// bullets == cells per color, so every exposed cell has a matching shooter on the loop.
+    /// Levels that start with 5 or fewer shooters never trigger it (only a drop does).
     /// Editor-only keys: 1/2/3 load a level, R restart.
     /// </summary>
     public class GameController : MonoBehaviour
@@ -56,6 +62,12 @@ namespace PixelShooting.View
         [SerializeField] private float hopHeight = 1f;
         [SerializeField] private float deathTime = 0.25f;
 
+        [Header("Loop finale (Part 3)")]
+        [Tooltip("When this many shooters (or fewer) are left, the finale starts.")]
+        [SerializeField] private int loopShooterCount = 5;
+        [Tooltip("Conveyor speed multiplier during the finale.")]
+        [SerializeField] private int loopSpeedMultiplier = 3;
+
         private readonly BoardModel board = new BoardModel();
         private readonly QueueModel queue = new QueueModel();
         private readonly List<string> errors = new List<string>();
@@ -78,6 +90,10 @@ namespace PixelShooting.View
         private GameState state;
         private float popupTimer;
         private int levelIndex;
+
+        private int aliveShooters;   // not destroyed yet (queue + pending + conveyor + holder)
+        private bool loopArmed;      // the level started with more than loopShooterCount
+        private bool looping;
 
         // A tap that reserved a conveyor place; its shooter still waits in place
         // (on top of a queue column, or in a holder slot) until the conveyor gate opens.
@@ -142,10 +158,50 @@ namespace PixelShooting.View
                 exited[i] = null;
             }
 
+            if (loopArmed && !looping && aliveShooters <= loopShooterCount)
+            {
+                StartLoopFinale();
+            }
+
             if (state == GameState.Playing && board.IsCleared)
             {
                 EndLevel(GameState.Won);
             }
+        }
+
+        /// <summary>
+        /// Part 3: lock input, speed the conveyor up, switch it to looping, and queue every
+        /// remaining holder/queue shooter to board one by one through the normal gate.
+        /// At most loopShooterCount (5 = conveyor capacity) are alive, so every reservation fits.
+        /// </summary>
+        private void StartLoopFinale()
+        {
+            looping = true;
+            conveyor.StartLooping(speed * loopSpeedMultiplier);
+
+            for (int slot = 0; slot < HolderModel.Capacity; slot++)
+            {
+                if (holder.Get(slot) == null || IsPending(true, slot)) continue;
+                QueueBoarding(true, slot);
+            }
+            for (int column = 0; column < queue.ColumnCount; column++)
+            {
+                int waiting = queue.Remaining(column) - CountPending(column);
+                for (int k = 0; k < waiting; k++)
+                {
+                    QueueBoarding(false, column);
+                }
+            }
+        }
+
+        private void QueueBoarding(bool fromHolder, int index)
+        {
+            if (!conveyor.TryReserve())
+            {
+                Debug.LogError("Loop finale: no conveyor place left (should be impossible).", this);
+                return;
+            }
+            pending[pendingCount++] = new PendingTap { FromHolder = fromHolder, Index = index };
         }
 
         private void EndLevel(GameState result)
@@ -174,6 +230,7 @@ namespace PixelShooting.View
 
         private void OnTap(Vector3 screenPosition)
         {
+            if (looping) return; // the finale plays itself
             Vector3 world = cam.ScreenToWorldPoint(screenPosition);
 
             if (holderView.TryPickSlot(world, out int slot))
@@ -245,6 +302,7 @@ namespace PixelShooting.View
 
             if (shot.ShooterEmptied)
             {
+                aliveShooters--;
                 ShooterView view = conveyorView.Remove(shot.Shooter); // also drops its skateboard
                 view.CachedTransform.DOKill();
                 view.CachedTransform.DOScale(0f, deathTime).SetEase(Ease.InBack).OnComplete(view.ReleaseCallback);
@@ -340,6 +398,14 @@ namespace PixelShooting.View
             BuildFiringPoints();
             queue.Reset(level);
             queueView.Build(queue, level);
+
+            aliveShooters = 0;
+            for (int column = 0; column < queue.ColumnCount; column++)
+            {
+                aliveShooters += queue.Remaining(column);
+            }
+            loopArmed = aliveShooters > loopShooterCount; // only a drop to the threshold triggers it
+            looping = false;
         }
 
         // Firing points depend on where the board's cells are, so rebuild them for every level.

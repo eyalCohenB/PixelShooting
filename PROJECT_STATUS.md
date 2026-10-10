@@ -3,7 +3,36 @@
 _Last updated: 2026-10-08_
 
 ## Current step (2026-10-08; resume here)
-**Part 2 (Core Gameplay) is COMPLETE.** Stage 8 (Game flow) is done and play-tested. **Stage 9 (polish) was skipped by the user** ("polish isn't needed right now"). **Next: Part 3**, a bonus part the user will send. Read it, break it down, ask questions, then go stage by stage as before.
+**Part 3 (Bonus: Loop Animation) is DONE**, play-tested by the user ("feels good") and committed. Parts 1-3 are all complete. **Next:** wait for the user (more spec parts, interview prep, or the optional cleanups below).
+
+### Part 3 summary (decisions by the user; all code by Claude at the user's request)
+- **The user's answers:**
+  - Remaining shooters board **one by one** through the entrance.
+  - The speed **jumps** to fast; the multiplier is an Inspector `int`, default **3**.
+  - Riders keep looping in the finale.
+  - The finale triggers **only when the count drops** to 5 (levels that start with 5 or fewer never trigger it).
+  - Pending taps just join the loop.
+- **`ConveyorModel`:**
+  - `StartLooping(newSpeed)` and `Looping`. In loop mode a rider at the path end wraps to 0 and resets `NextPoint`; nobody exits.
+  - `FireLimit` (the lap end, or the full path in loop mode) is used by `ShootingSystem`.
+  - The speed is mutable (`HopDuration = approach / speed`), and `Reset` restores the base speed.
+  - **The gate was generalized:** circular gap to **every** rider ≥ `minSpacing`, because order breaks after wrapping. It's equivalent to the old two-sided check in normal mode.
+- **`GameController`:**
+  - `aliveShooters` (decremented on `ShooterEmptied`) and `loopArmed` (start count > 5).
+  - `StartLoopFinale()` locks input, speeds up and queues every holder/queue shooter as pending.
+  - Serialized `loopShooterCount = 5` and `loopSpeedMultiplier = 3`.
+- **`ConveyorView`:** kills the hop tween once when a rider lands (`ShooterView.OnTrack`), so a hop interrupted by the speed jump never fights `Sync`.
+- **Tests (`LoopTests`):**
+  - Loop wrap, speed and reset, and a random loop-mode gap simulation.
+  - Whole games: random play until the finale, then the finale **always wins** (Level 2 150/150, Level 3 150/150, Level 4 87/87; the longest finale is about 5 s).
+  - Level 1 never triggers it (5 or fewer shooters at the start).
+
+### Optional cleanups (not requested)
+- Remove `LevelLoadTester`.
+- A dying shooter snaps to its base rotation (polish).
+- Profiler pass (GC alloc = 0 in gameplay).
+
+### Part 2 is complete: stage 9 (polish) was skipped by the user.
 
 ### Stage 8 summary (decisions 1B, 2, 3 by the user; all code by Claude at the user's request)
 - **1B:** `GameplayTester` was renamed to **`GameController`** (with its `.meta`, so the scene component stayed linked) and stays one MonoBehaviour.
@@ -110,7 +139,7 @@ _Last updated: 2026-10-08_
 - **Known placeholders/notes:**
   - The exit hop goes to the 5/5 box. `Shooter.Location` is still not set on exit (stage 7).
   - **Path values** (tester Inspector): left -4.75, right 4.75, bottom -1.77, top 8.26, lapEndGap 1.6, speed 5, minSpacing 1.2, hopTime 0.4.
-- **Tests:** `cd Tools/CoreTests && dotnet run` → Level 14, Board 17, Queue 7, Conveyor 33, Shooting 11, Holder 11, Level04 3 checks, all passing.
+- **Tests:** `cd Tools/CoreTests && dotnet run` → Level 14, Board 17, Queue 7, Conveyor 33, Shooting 11, Holder 11, Level04 3, Loop 10 checks, all passing.
 - **Git:** `master`, one commit per stage.
 
 ## Done

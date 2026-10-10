@@ -22,22 +22,27 @@ namespace PixelShooting.Core.Conveyor
     ///   until CanEnter, so nothing ever waits on the track.
     /// - The hop counts as part of the ride: a rider enters at Distance = -approach
     ///   (approach = speed * hopTime) and reaches 0 exactly when the hop lands.
-    /// - The gate checks both neighbours of the entry point: the newest rider ahead and the
-    ///   oldest rider coming round the end of the lap behind it.
+    /// - The gate checks the gap around the loop to every rider, ahead of the entry point and
+    ///   behind it (a rider coming round the end of the lap).
     /// - The lap ends at LapLength, which can be a bit before the end of the path (the riders
     ///   get off on the left side, just above the entrance, and hop away).
+    /// - Loop mode (Part 3 bonus): riders never get off; at the end of the path they wrap to 0
+    ///   and start a new lap (firing points start over), at a higher speed. Wrapping keeps the
+    ///   gaps around the loop unchanged, so it can't cause an overlap either.
     /// </summary>
     public sealed class ConveyorModel
     {
         public const int Capacity = 5;
 
         private readonly ConveyorPath path;
-        private readonly float speed;
+        private readonly float baseSpeed;
+        private float speed;
         private readonly float minSpacing;
         private readonly float approach;
         private readonly float lapLength;
 
-        private readonly ConveyorRider[] riders = new ConveyorRider[Capacity]; // [0] = oldest/furthest
+        // Entry order: [0] = oldest. Before loop mode that's also the furthest along.
+        private readonly ConveyorRider[] riders = new ConveyorRider[Capacity];
         private int riderCount;
         private int reserved; // riders + reservations still waiting in place
 
@@ -49,6 +54,10 @@ namespace PixelShooting.Core.Conveyor
         public float HopDuration => approach / speed;
         /// <summary>Distance along the path where a rider's lap ends and it gets off.</summary>
         public float LapLength => lapLength;
+        /// <summary>Loop mode: riders keep lapping until their bullets run out (Part 3 bonus).</summary>
+        public bool Looping { get; private set; }
+        /// <summary>Firing points at or past this distance are never fired (riders don't get there).</summary>
+        public float FireLimit => Looping ? path.Length : lapLength;
         public ConveyorRider GetRider(int i) => riders[i];
         /// <summary>Direct access to a rider, so the shooting system can advance NextPoint in place.</summary>
         public ref ConveyorRider RiderRef(int i) => ref riders[i];
@@ -58,6 +67,7 @@ namespace PixelShooting.Core.Conveyor
         {
             this.path = path;
             this.lapLength = lapLength > 0f && lapLength < path.Length ? lapLength : path.Length;
+            baseSpeed = speed;
             this.speed = speed;
             this.minSpacing = minSpacing;
             approach = speed * hopTime;
@@ -77,17 +87,20 @@ namespace PixelShooting.Core.Conveyor
             get
             {
                 if (Pending <= 0) return false;
-                if (riderCount == 0) return true;
 
-                // The new rider starts at -approach. The newest rider must be minSpacing ahead of it.
-                bool aheadClear = riders[riderCount - 1].Distance + approach >= minSpacing;
-
-                // The oldest rider is behind the entry point (going round to the end of the lap).
-                // The gap from it to the new rider is constant, so checking it once, now, is enough.
-                // (Measured to the end of the path, not LapLength: safe even if the lap is shortened.)
-                bool behindClear = path.Length - riders[0].Distance - approach >= minSpacing;
-
-                return aheadClear && behindClear;
+                // The new rider starts at -approach. Every rider must be at least minSpacing from
+                // it around the loop, both ahead (forward gap) and behind (coming round the end).
+                // Gaps never change afterwards (same speed; wrapping keeps loop distances), so
+                // checking once, now, is enough. Measured on the full path, not LapLength, so it
+                // is safe whether riders get off early or loop.
+                float length = path.Length;
+                for (int i = 0; i < riderCount; i++)
+                {
+                    float ahead = (riders[i].Distance + approach) % length;
+                    if (ahead < 0f) ahead += length;
+                    if (ahead < minSpacing || length - ahead < minSpacing) return false;
+                }
+                return true;
             }
         }
 
@@ -119,11 +132,34 @@ namespace PixelShooting.Core.Conveyor
         }
 
         /// <summary>
+        /// Switches to loop mode at a new speed (Part 3). The approach distance stays the same,
+        /// so HopDuration gets shorter and hops still land exactly at distance 0.
+        /// </summary>
+        public void StartLooping(float newSpeed)
+        {
+            Looping = true;
+            speed = newSpeed;
+        }
+
+        /// <summary>
         /// Removes riders that reached LapLength and writes their shooters into 'exited'
         /// (size >= Capacity, owned by the caller). Returns how many exited.
+        /// In loop mode nobody exits: riders at the end of the path wrap to a new lap instead.
         /// </summary>
         public int CollectExits(Shooter[] exited)
         {
+            if (Looping)
+            {
+                float length = path.Length;
+                for (int i = 0; i < riderCount; i++)
+                {
+                    if (riders[i].Distance < length) continue;
+                    riders[i].Distance -= length;
+                    riders[i].NextPoint = 0;
+                }
+                return 0;
+            }
+
             int exitCount = 0;
             // The oldest is always the furthest along, so exits only ever happen at index 0.
             while (riderCount > 0 && riders[0].Distance >= lapLength)
@@ -154,6 +190,8 @@ namespace PixelShooting.Core.Conveyor
             System.Array.Clear(riders, 0, riders.Length);
             riderCount = 0;
             reserved = 0;
+            Looping = false;
+            speed = baseSpeed;
         }
     }
 }

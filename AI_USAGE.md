@@ -204,6 +204,20 @@ The assignment was built with Claude Code (Claude Opus 5.5) as a pair programmer
   - **Bullet bubble:** I asked for a bubble showing each shooter's bullets left. Claude added it to `ShooterView` (built in code; it stays upright on the conveyor).
   - **Verification:** the harness passes, including the Level04 suite. I play-tested win, lose, Next/Retry, wrapping and the bubbles.
 
+- **Day 4 (2026-10-10): Part 3 bonus, loop finale.**
+  - Claude restated the spec and asked 4 questions, since it hasn't seen the reference animation. My answers:
+    - shooters board one by one
+    - the speed jumps, with a configurable multiplier (default 3)
+    - riders keep looping
+    - it triggers only when the count drops to 5
+  - Claude proposed reusing the existing pending/gate machinery for boarding, and a loop mode in `ConveyorModel` (wrap instead of exit).
+  - Claude also noticed that wrapping breaks the front-to-back rider order the gate relied on, and generalized the gate to a circular-gap check against every rider (identical in normal mode).
+  - I asked Claude to write it.
+  - **Verification:**
+    - 10 new harness checks, including whole random games run into the finale: every finale won (Levels 2-4).
+    - Claude also explained why a win is guaranteed: bullets = cells per color, so some looping shooter always matches an exposed cell.
+    - I play-tested it in Unity ("feels good").
+
 <!-- Template for each part:
 ### Part N: <title> (<date>)
 - **What I asked:**

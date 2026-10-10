@@ -44,7 +44,7 @@ namespace PixelShooting.Core.Shooting
         public int Fire(Shot[] shots)
         {
             int count = 0;
-            float lapLength = conveyor.LapLength;
+            float fireLimit = conveyor.FireLimit; // the lap end, or the full path in loop mode
 
             for (int i = 0; i < conveyor.RiderCount; i++)
             {
@@ -53,7 +53,7 @@ namespace PixelShooting.Core.Shooting
                 while (rider.NextPoint < points.Count)
                 {
                     FiringPoint point = points[rider.NextPoint];
-                    if (point.Distance > rider.Distance || point.Distance >= lapLength)
+                    if (point.Distance > rider.Distance || point.Distance >= fireLimit)
                     {
                         break; // not there yet, or past the lap end (never reached)
                     }

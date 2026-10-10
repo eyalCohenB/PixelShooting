@@ -7,7 +7,8 @@ Project context for Claude Code sessions. Keep this file updated after every com
 2. **Where we are (day 3, 2026-10-08):**
    - **Part 1 (Scene Setup): done.**
    - **Part 2 (Core Gameplay): COMPLETE** (stages 0-8; stage 9 polish was skipped by the user on 2026-10-08).
-   - **The first thing to do next session: Part 3**, a bonus part the user sends. Break it down and ask questions, then go stage by stage: briefly present 2-3 decisions with a recommendation, and ask "you or me?" (on day 3 the user mostly said "you do it").
+   - **Part 3 (Bonus, Loop Animation): COMPLETE** and committed (2026-10-10).
+   - **The first thing to do next session:** ask the user what's next (more spec, interview prep, or the optional cleanups in `PROJECT_STATUS.md`). For new work, keep the same flow: briefly present 2-3 decisions with a recommendation, and ask "you or me?" (on day 3 the user mostly said "you do it").
    - On day 3 the user delegated more again: "you do it" for the model redesign, the tester wiring and the skateboards. Always ask "you or me?" for each step.
 3. **How the user wants to work** (updated on day 2; this overrides "Learning mode" below):
    - **From stage 5 on, the USER writes the gameplay code, and Claude guides.** The user isn't very experienced in C#/Unity and gets stuck on big tasks, but wants to be able to explain the code in the interview. So:
@@ -157,6 +158,11 @@ UI/
   - **Empty cells** are allowed.
   - **Holder:** shooters keep their slots; there's no compaction.
   - **Skateboard:** only on the conveyor. It's released to a pool when the shooter moves to the holder or is destroyed.
+
+### Part 3: Bonus, Loop Animation (received 2026-10-08)
+- Once **only 5 shooters are left** in total (conveyor + holder + queue), **input locks**.
+- All remaining shooters that aren't on the conveyor **move to the conveyor smoothly**.
+- The conveyor **speeds up** and quickly wins the level, "like in this animation" (a reference video Claude doesn't have, so ask the user what it shows).
 
 ### Facts about the assets that matter for layout (checked 2026-10-04)
 - `BG_Full.png` is 1125×2436 (aspect 0.46, iPhone X). **The conveyor track and the sand play area are baked into the background.** So gameplay objects (conveyor path, board) must stay locked to the BG image's coordinates, and the BG can't be stretched or cropped independently of them.
@@ -370,6 +376,20 @@ UI/
   - `ConveyorView.Sync` calls `UpdateBubble` so it stays upright on turning riders.
 - **Levels:** `Level01-03` are forgiving. `Level04` is "order matters" (a single 20-bullet red ring shooter buried in column 0), and random tapping loses there about 46% of the time.
 
+## Loop finale (Part 3 bonus: DONE on 2026-10-10; all code by Claude, decisions by the user)
+- **Trigger:**
+  - `GameController.aliveShooters` counts the shooters not yet destroyed. It starts as the queue total and is decremented on `Shot.ShooterEmptied`.
+  - When it **drops** to `loopShooterCount` (5), the finale starts. `loopArmed` requires a start count > 5, so small levels (e.g. `Level01`) never trigger it.
+- **Finale:**
+  - Taps are ignored, and the conveyor switches to `StartLooping(speed * loopSpeedMultiplier)` (an `int`, default 3; the speed jumps).
+  - Every holder and queue shooter is added to the pending FIFO with a reservation, so they board **one by one through the normal gate**. With at most 5 alive (= capacity), every reservation fits.
+- **Loop mode (`ConveyorModel`):**
+  - No exits. At the path end a rider wraps (`Distance -= Length`, `NextPoint = 0`), so it fires a whole new lap, including the rows past the normal lap end (`FireLimit` = full path).
+  - Because wrapping keeps the distances around the loop unchanged, it can't cause an overlap.
+- **Gate (generalized for this):** `CanEnter` checks the circular gap from the new rider (at `-approach`) to **every** rider: ≥ `minSpacing` both ahead and behind. In normal mode this is the same as the old newest-ahead/oldest-behind check.
+- **Speed change:** `approach` is a fixed distance, so `HopDuration` shrinks with speed. `ConveyorView` kills a rider's hop tween once when it lands (`ShooterView.OnTrack`), so a hop that was interrupted by the speed jump doesn't fight `Sync`.
+- **Why it always wins:** bullets = cells per color. Every exposed cell has a color for which some looping shooter still has bullets, so each lap makes progress. This is checked by `LoopTests`, which plays whole random games into the finale (100% wins on Levels 2-4).
+
 ## Animation (Part 2, stage 1, decided 2026-10-05)
 - **DOTween** handles one-off A→B animations:
   - queue shift-up
@@ -391,7 +411,7 @@ UI/
 ## Testing
 - **`Tools/CoreTests/`** is a .NET 10 console harness, outside `Assets/` so Unity ignores it. Run it with `dotnet run` in that folder.
   - It compiles the Core sources directly (`Levels`, `Board`, `Queue`, `Conveyor`, `Shooting`, `Holder`) against `UnityShim.cs`, which stands in for `Color`, `Color32`, `ColorUtility` and `JsonUtility`.
-  - Suites: `LevelTests` (14 checks), `BoardTests` (17, including 42k random queries compared against brute force and 0-allocation checks), `QueueTests` (7), `ConveyorTests` (33: path, gate, two-sided gap, lap end, 20k-step random sim, 0 allocations), `ShootingTests` (11: points, lap order, blocking, lap-end cut-off, buffer overflow, Level03 sim with the bullets==cells invariant, 0 allocations), `HolderTests` (11), `Level04Tests` (plays whole games: Level04 is winnable via DFS and random tapping loses ≥1/3; it also reports Levels 1-3 never losing).
+  - Suites: `LevelTests` (14 checks), `BoardTests` (17, including 42k random queries compared against brute force and 0-allocation checks), `QueueTests` (7), `ConveyorTests` (33: path, gate, two-sided gap, lap end, 20k-step random sim, 0 allocations), `ShootingTests` (11: points, lap order, blocking, lap-end cut-off, buffer overflow, Level03 sim with the bullets==cells invariant, 0 allocations), `HolderTests` (11), `Level04Tests` (plays whole games: Level04 is winnable via DFS and random tapping loses ≥1/3; it also reports Levels 1-3 never losing), `LoopTests` (10: loop wrap/speed/reset, circular-gap random sim, whole games where every finale wins).
   - The shim also has a minimal `Vector2` and `Mathf.Clamp`. Extend it when Core uses more of UnityEngine.
   - **When adding Core code, add a suite and add its folder to `CoreTests.csproj`.** (`.gitignore` ignores `*.csproj` but has an exception for `Tools/**`.)
 - Unity is usually open while we work, so batch mode can't run. The user tests the View in Play mode.

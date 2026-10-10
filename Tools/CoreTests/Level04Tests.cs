@@ -25,7 +25,7 @@ static class Level04Tests { static int fails=0; static void Check(bool c,string 
 
   class Game {
     public BoardModel Board=new BoardModel(); public QueueModel Q=new QueueModel(); public HolderModel H=new HolderModel();
-    public ConveyorModel C; ShootingSystem S; Shot[] shots=new Shot[32]; Shooter[] ex=new Shooter[5]; int pendingSrc; public Random Rng;
+    public ConveyorModel C; ShootingSystem S; Shot[] shots=new Shot[32]; Shooter[] ex=new Shooter[5]; int pendingSrc;
     public Game(LevelData l){
       // Scene values: path (-4.75, 4.75, -1.77, 8.26), lapEndGap 1.6, speed 5, spacing 1.2, hop 0.4; board area 7.8 at y 3.26.
       var path=new ConveyorPath(-4.75f,4.75f,-1.77f,8.26f); Board.Reset(l); Q.Reset(l);

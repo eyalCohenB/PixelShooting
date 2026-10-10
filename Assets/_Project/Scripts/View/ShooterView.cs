@@ -46,6 +46,8 @@ namespace PixelShooting.View
         private TextMeshPro bubbleText;
 
         public Shooter Shooter { get; private set; }
+        /// <summary>Set by ConveyorView: true once the model (not the hop tween) moves this view.</summary>
+        public bool OnTrack { get; set; }
         public Transform CachedTransform => cachedTransform;
 
         /// <summary>Called once by the pool right after Instantiate.</summary>
