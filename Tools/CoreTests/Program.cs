@@ -24,6 +24,7 @@ static class Program
         Console.WriteLine("== Holder ==");                 fails += HolderTests.Run();
         Console.WriteLine("== Level04 (order matters) =="); fails += Level04Tests.Run();
         Console.WriteLine("== Loop finale (Part 3) ==");  fails += LoopTests.Run();
+        Console.WriteLine("== Hint solver ==");            fails += HintTests.Run();
         Console.WriteLine(fails == 0 ? "\nALL SUITES PASSED" : $"\n{fails} FAILURES");
         return fails == 0 ? 0 : 1;
     }

@@ -77,6 +77,37 @@ namespace PixelShooting.Core.Board
             }
         }
 
+        /// <summary>
+        /// Makes this board an exact copy of another (cells, depths, count), e.g. a snapshot for
+        /// the hint solver to play on. Reuses the arrays when the size matches.
+        /// </summary>
+        public void CopyFrom(BoardModel source)
+        {
+            Width = source.Width;
+            Height = source.Height;
+            RemainingCells = source.RemainingCells;
+
+            if (cells == null || cells.Length != source.cells.Length)
+            {
+                cells = new sbyte[source.cells.Length];
+            }
+            Array.Copy(source.cells, cells, cells.Length);
+
+            if (depths == null)
+            {
+                depths = new int[SideCount][];
+            }
+            for (int side = 0; side < SideCount; side++)
+            {
+                int[] from = source.depths[side];
+                if (depths[side] == null || depths[side].Length != from.Length)
+                {
+                    depths[side] = new int[from.Length];
+                }
+                Array.Copy(from, depths[side], from.Length);
+            }
+        }
+
         public sbyte GetCell(int x, int y) => cells[y * Width + x];
 
         /// <summary>

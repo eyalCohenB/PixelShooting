@@ -14,5 +14,6 @@
     <Compile Include="../../Assets/_Project/Scripts/Core/Conveyor/*.cs" />
     <Compile Include="../../Assets/_Project/Scripts/Core/Shooting/*.cs" />
     <Compile Include="../../Assets/_Project/Scripts/Core/Holder/*.cs" />
+    <Compile Include="../../Assets/_Project/Scripts/Core/Hint/*.cs" />
   </ItemGroup>
 </Project>

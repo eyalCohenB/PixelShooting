@@ -2,12 +2,14 @@ using System.Collections.Generic;
 using DG.Tweening;
 using PixelShooting.Core.Board;
 using PixelShooting.Core.Conveyor;
+using PixelShooting.Core.Hint;
 using PixelShooting.Core.Holder;
 using PixelShooting.Core.Levels;
 using PixelShooting.Core.Queue;
 using PixelShooting.Core.Shooting;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace PixelShooting.View
 {
@@ -29,6 +31,9 @@ namespace PixelShooting.View
     /// conveyor loops at speed x loopSpeedMultiplier until the board is clear. It always wins:
     /// bullets == cells per color, so every exposed cell has a matching shooter on the loop.
     /// Levels that start with 5 or fewer shooters never trigger it (only a drop does).
+    ///
+    /// Hint button: HintSolver searches for a winning order from the live state and the next
+    /// shooter in it gets a pulsing ring for a few seconds (cleared by any tap).
     /// Editor-only keys: 1/2/3 load a level, R restart.
     /// </summary>
     public class GameController : MonoBehaviour
@@ -61,6 +66,12 @@ namespace PixelShooting.View
         [SerializeField] private float hopTime = 0.4f;
         [SerializeField] private float hopHeight = 1f;
         [SerializeField] private float deathTime = 0.25f;
+
+        [Header("Hint")]
+        [SerializeField] private Button hintButton;
+        [SerializeField] private TMP_Text hintLabel;
+        [SerializeField] private float hintDuration = 4f;
+        [SerializeField] private Color hintColor = new Color32(255, 196, 40, 255);
 
         [Header("Loop finale (Part 3)")]
         [Tooltip("When this many shooters (or fewer) are left, the finale starts.")]
@@ -95,16 +106,15 @@ namespace PixelShooting.View
         private bool loopArmed;      // the level started with more than loopShooterCount
         private bool looping;
 
-        // A tap that reserved a conveyor place; its shooter still waits in place
-        // (on top of a queue column, or in a holder slot) until the conveyor gate opens.
-        private struct PendingTap
-        {
-            public bool FromHolder;
-            public int Index; // queue column or holder slot
-        }
-
-        private readonly PendingTap[] pending = new PendingTap[ConveyorModel.Capacity]; // FIFO
+        // Taps that reserved a conveyor place; each shooter still waits in place (on top of a
+        // queue column, or in a holder slot) until the conveyor gate opens. FIFO.
+        private readonly TapSource[] pending = new TapSource[ConveyorModel.Capacity];
         private int pendingCount;
+
+        private readonly HintSolver hintSolver = new HintSolver();
+        private Transform hintRing;
+        private ShooterView hintTarget;
+        private float hintTimer;
 
         private void Awake()
         {
@@ -112,6 +122,9 @@ namespace PixelShooting.View
             DOTween.Init(true, true, LogBehaviour.ErrorsOnly).SetCapacity(200, 50);
             popup.Init();
             popup.Button.onClick.AddListener(OnPopupButton); // once: no per-show allocation
+            hintButton.onClick.AddListener(OnHintButton);
+            StyleHintButton();
+            hintRing = CreateHintRing();
         }
 
         private void Start()
@@ -133,6 +146,7 @@ namespace PixelShooting.View
             if (Input.GetKeyDown(KeyCode.R)) Restart();
 #endif
             if (level == null) return;
+            UpdateHint();
             if (state != GameState.Playing)
             {
                 UpdateEnd();
@@ -176,6 +190,8 @@ namespace PixelShooting.View
         /// </summary>
         private void StartLoopFinale()
         {
+            ClearHint();
+            hintButton.interactable = false; // the finale plays itself
             looping = true;
             conveyor.StartLooping(speed * loopSpeedMultiplier);
 
@@ -201,11 +217,13 @@ namespace PixelShooting.View
                 Debug.LogError("Loop finale: no conveyor place left (should be impossible).", this);
                 return;
             }
-            pending[pendingCount++] = new PendingTap { FromHolder = fromHolder, Index = index };
+            pending[pendingCount++] = new TapSource { FromHolder = fromHolder, Index = index };
         }
 
         private void EndLevel(GameState result)
         {
+            ClearHint();
+            hintButton.interactable = false;
             state = result;
             popupTimer = 0f;
         }
@@ -241,7 +259,8 @@ namespace PixelShooting.View
                     holderView.Shake(slot); // conveyor full
                     return;
                 }
-                pending[pendingCount++] = new PendingTap { FromHolder = true, Index = slot };
+                pending[pendingCount++] = TapSource.Holder(slot);
+                ClearHint();
                 return;
             }
 
@@ -255,7 +274,8 @@ namespace PixelShooting.View
                 queueView.Shake(column); // conveyor full
                 return;
             }
-            pending[pendingCount++] = new PendingTap { FromHolder = false, Index = column };
+            pending[pendingCount++] = TapSource.Queue(column);
+            ClearHint();
         }
 
         /// <summary>Lets waiting shooters hop on, oldest tap first, while the conveyor gate is open.</summary>
@@ -263,7 +283,7 @@ namespace PixelShooting.View
         {
             while (pendingCount > 0 && conveyor.CanEnter)
             {
-                PendingTap tap = pending[0];
+                TapSource tap = pending[0];
                 for (int i = 1; i < pendingCount; i++) pending[i - 1] = pending[i];
                 pendingCount--;
 
@@ -335,6 +355,80 @@ namespace PixelShooting.View
             EndLevel(GameState.Lost);
         }
 
+        private void OnHintButton()
+        {
+            if (state != GameState.Playing || looping) return;
+            ClearHint();
+            if (!hintSolver.TryGetHint(board, firingPoints, conveyor.LapLength, queue, holder, conveyor,
+                    pending, pendingCount, out TapSource hint, out _))
+            {
+                return; // nothing to tap
+            }
+
+            hintTarget = hint.FromHolder ? holderView.GetView(hint.Index) : queueView.TopView(hint.Index);
+            if (hintTarget == null) return;
+            hintTimer = hintDuration;
+            hintRing.gameObject.SetActive(true);
+            hintRing.DOKill();
+            hintRing.localScale = Vector3.one;
+            hintRing.DOScale(1.3f, 0.45f).SetEase(Ease.InOutSine).SetLoops(-1, LoopType.Yoyo);
+            UpdateHint();
+        }
+
+        // The ring follows its shooter (e.g. while the column moves up) until it times out.
+        private void UpdateHint()
+        {
+            if (hintTarget == null) return;
+            hintTimer -= Time.deltaTime;
+            if (hintTimer <= 0f || !hintTarget.gameObject.activeInHierarchy)
+            {
+                ClearHint();
+                return;
+            }
+            Vector3 p = hintTarget.CachedTransform.position;
+            hintRing.position = new Vector3(p.x, p.y, p.z + 0.4f); // just behind the shooter
+        }
+
+        private void ClearHint()
+        {
+            hintTarget = null;
+            if (hintRing == null) return;
+            hintRing.DOKill();
+            hintRing.gameObject.SetActive(false);
+        }
+
+        // A soft glowing disc (the runtime rounded sprite), drawn under the shooter.
+        private Transform CreateHintRing()
+        {
+            // Parent = what pulses (scale 1 -> 1.3); child = the disc, sized to 1.4 world units.
+            var ring = new GameObject("HintRing").transform;
+            ring.SetParent(transform, false);
+            var disc = new GameObject("Disc");
+            disc.transform.SetParent(ring, false);
+            var renderer = disc.AddComponent<SpriteRenderer>();
+            renderer.sprite = RoundedSprite.Get();
+            renderer.color = new Color(hintColor.r, hintColor.g, hintColor.b, 0.55f);
+            renderer.sortingLayerName = "Gameplay";
+            float size = 1.4f / renderer.sprite.bounds.size.x;
+            disc.transform.localScale = new Vector3(size, size, 1f);
+            ring.gameObject.SetActive(false);
+            return ring;
+        }
+
+        private void StyleHintButton()
+        {
+            var rect = (RectTransform)hintButton.transform;
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(1f, 1f); // top-right
+            rect.anchoredPosition = new Vector2(-40f, -40f);
+            rect.sizeDelta = new Vector2(280f, 130f);
+            UiStyle.Rounded(hintButton.GetComponent<Image>(), hintColor, 0.3f);
+            UiStyle.Shadow(hintButton.gameObject, new Vector2(0f, -8f), 0.3f);
+            UiStyle.ButtonColors(hintButton);
+            UiStyle.Fill(hintLabel.rectTransform);
+            UiStyle.Text(hintLabel, 60f, Color.white, true);
+            hintLabel.SetText("HINT");
+        }
+
         private bool IsPending(bool fromHolder, int index)
         {
             for (int i = 0; i < pendingCount; i++)
@@ -392,6 +486,8 @@ namespace PixelShooting.View
             }
             state = GameState.Playing;
             popup.HideNow();
+            ClearHint();
+            hintButton.interactable = true;
             bullets.Clear();
             board.Reset(level);
             boardView.Build(board, level);

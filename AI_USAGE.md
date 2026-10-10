@@ -218,6 +218,23 @@ The assignment was built with Claude Code (Claude Opus 5.5) as a pair programmer
     - Claude also explained why a win is guaranteed: bullets = cells per color, so some looping shooter always matches an exposed cell.
     - I play-tested it in Unity ("feels good").
 
+- **Day 4 (2026-10-10): extras to make the project stand out.**
+  - I asked Claude what would make the game stand out. It proposed, ranked against the grading criteria:
+    - a performance proof and a README with diagrams
+    - an image→level importer
+    - a hint button using the solver
+    - a Unity Test Runner integration
+    - juice
+  - I chose the README and the hint.
+  - **README:** Claude wrote it for reviewers, with Mermaid architecture and frame diagrams. The test counts were taken from an actual harness run.
+  - **Hint:**
+    - Claude wrote `HintSolver` (DFS over sequential laps from the live state, on board snapshots) plus 9 harness checks: following the hints wins every level, and repeat calls allocate nothing.
+    - Claude also wrote the button and ring wiring and a shared `UiStyle`.
+  - **What went wrong:**
+    - I didn't see the button. Claude checked the saved scene and found that the button I was supposed to add wasn't there yet.
+    - Claude then added a fallback that built the button in code. I had done the manual setup in the meantime, so I asked it to revert the fallback, and it did.
+  - **GitHub prep:** Claude checked the tracked files against `.gitignore`. It ignored and untracked the 10 MB assignment `.unitypackage`, whose contents are already imported under `Assets/PackageAssets`.
+
 <!-- Template for each part:
 ### Part N: <title> (<date>)
 - **What I asked:**

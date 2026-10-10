@@ -90,6 +90,9 @@ namespace PixelShooting.View
         }
 
         /// <summary>Plays the "can't select" shake on a column's top shooter.</summary>
+        /// <summary>The view on top of a column (null if the column is empty).</summary>
+        public ShooterView TopView(int column) => slots[column][0];
+
         public void Shake(int column)
         {
             ShooterView top = slots[column][0];

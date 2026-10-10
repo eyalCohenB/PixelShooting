@@ -3,7 +3,18 @@
 _Last updated: 2026-10-08_
 
 ## Current step (2026-10-08; resume here)
-**Part 3 (Bonus: Loop Animation) is DONE**, play-tested by the user ("feels good") and committed. Parts 1-3 are all complete. **Next:** wait for the user (more spec parts, interview prep, or the optional cleanups below).
+**Parts 1-3 are complete.** Extras added on 2026-10-10 at the user's request: **`README.md`** (with architecture and frame diagrams) and a **hint button** (`HintSolver`). Both were play-tested and committed. The repo is being prepared for GitHub: `.gitignore` now also ignores `*.unitypackage`, and the assignment package was untracked. **Next:** wait for the user (interview prep, or the optional cleanups below; the user also considered an image→level importer).
+
+### Extras summary (2026-10-10; all code by Claude at the user's request)
+- **`README.md`:** for reviewers. It covers how to play, a Mermaid architecture diagram + a one-frame sequence diagram, the key systems, a performance table, the test suites (117 checks) and the levels.
+- **Hint:**
+  - **`Core/Hint/HintSolver`:** a DFS over "sequential laps" (one shooter rides alone, using the `ShootingSystem` rules) from the live state. Riders finish first, then pending taps.
+    - Moves are ordered by immediate hits, with a node budget and a greedy fallback.
+    - It works on `BoardModel.CopyFrom` snapshots, so it never touches the live game.
+  - **`Core/Hint/TapSource`** replaced the private `PendingTap` in `GameController`.
+  - **`GameController`:** a hint button (wired in the scene by the user, styled by code) shows a pulsing ring under the suggested shooter for 4 s. Any tap clears it, and it's disabled in the finale and while the popup is up.
+  - **`View/UiStyle`:** shared styling, now also used by `GamePopup`.
+  - **Tests:** `HintTests` (9). Following the hints wins Levels 1-4, the first Level04 hint is Q0, it works mid-game, 0 bytes are allocated on repeat calls, and it takes about 0.3 ms.
 
 ### Part 3 summary (decisions by the user; all code by Claude at the user's request)
 - **The user's answers:**
@@ -139,7 +150,7 @@ _Last updated: 2026-10-08_
 - **Known placeholders/notes:**
   - The exit hop goes to the 5/5 box. `Shooter.Location` is still not set on exit (stage 7).
   - **Path values** (tester Inspector): left -4.75, right 4.75, bottom -1.77, top 8.26, lapEndGap 1.6, speed 5, minSpacing 1.2, hopTime 0.4.
-- **Tests:** `cd Tools/CoreTests && dotnet run` → Level 14, Board 17, Queue 7, Conveyor 33, Shooting 11, Holder 11, Level04 3, Loop 10 checks, all passing.
+- **Tests:** `cd Tools/CoreTests && dotnet run` → Level 14, Board 17, Queue 7, Conveyor 33, Shooting 11, Shooting 13, Holder 11, Level04 3, Loop 10, Hint 9 = 117 checks, all passing.
 - **Git:** `master`, one commit per stage.
 
 ## Done

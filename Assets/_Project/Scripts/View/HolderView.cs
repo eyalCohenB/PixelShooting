@@ -53,6 +53,9 @@ namespace PixelShooting.View
             return false;
         }
 
+        /// <summary>The view in a slot (null if empty).</summary>
+        public ShooterView GetView(int slot) => views[slot];
+
         public void Shake(int slot)
         {
             if (views[slot] != null) views[slot].Shake();

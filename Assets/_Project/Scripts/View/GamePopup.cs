@@ -46,7 +46,6 @@ namespace PixelShooting.View
         {
             if (initialized) return;
             initialized = true;
-            Sprite rounded = RoundedSprite.Get();
 
             // Dim background (this object, full screen).
             var dim = GetComponent<Image>();
@@ -57,8 +56,8 @@ namespace PixelShooting.View
             card.anchoredPosition = new Vector2(0f, 60f);
             card.sizeDelta = cardSize;
             Image cardImage = card.GetComponent<Image>();
-            Style(cardImage, rounded, cardColor, 0.35f);
-            AddShadow(card.gameObject, new Vector2(0f, -14f), 0.35f);
+            UiStyle.Rounded(cardImage, cardColor, 0.35f);
+            UiStyle.Shadow(card.gameObject, new Vector2(0f, -14f), 0.35f);
 
             // Ribbon: the coloured top band, behind the title.
             var ribbonGo = new GameObject("Ribbon", typeof(RectTransform), typeof(Image));
@@ -71,7 +70,7 @@ namespace PixelShooting.View
             ribbonRect.anchoredPosition = Vector2.zero;
             ribbonRect.sizeDelta = new Vector2(0f, 230f);
             ribbon = ribbonGo.GetComponent<Image>();
-            Style(ribbon, rounded, winColor, 0.35f);
+            UiStyle.Rounded(ribbon, winColor, 0.35f);
             ribbon.raycastTarget = false;
 
             // Title: big, bold, white, on the ribbon.
@@ -81,7 +80,7 @@ namespace PixelShooting.View
             titleRect.pivot = new Vector2(0.5f, 1f);
             titleRect.anchoredPosition = new Vector2(0f, -25f);
             titleRect.sizeDelta = new Vector2(-60f, 180f);
-            StyleText(title, 96f, titleColor, true);
+            UiStyle.Text(title, 96f, titleColor, true);
 
             // Subtitle: a copy of the title, smaller, in the middle of the card.
             subtitle = Instantiate(title, card);
@@ -91,7 +90,7 @@ namespace PixelShooting.View
             subRect.pivot = new Vector2(0.5f, 0.5f);
             subRect.anchoredPosition = new Vector2(0f, 40f);
             subRect.sizeDelta = new Vector2(cardSize.x - 120f, 160f);
-            StyleText(subtitle, 56f, subtitleColor, false);
+            UiStyle.Text(subtitle, 56f, subtitleColor, false);
 
             // Button: big rounded pill at the bottom of the card, white bold label, pressed = darker.
             buttonRect = (RectTransform)button.transform;
@@ -100,21 +99,11 @@ namespace PixelShooting.View
             buttonRect.anchoredPosition = new Vector2(0f, 70f);
             buttonRect.sizeDelta = buttonSize;
             buttonImage = button.GetComponent<Image>();
-            Style(buttonImage, rounded, winColor, 0.3f);
-            AddShadow(button.gameObject, new Vector2(0f, -10f), 0.3f);
-            ColorBlock colors = button.colors;
-            colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(1f, 1f, 1f, 1f);
-            colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
-            colors.selectedColor = Color.white;
-            colors.fadeDuration = 0.08f;
-            button.colors = colors;
-
-            var labelRect = buttonLabel.rectTransform;
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = labelRect.offsetMax = Vector2.zero;
-            StyleText(buttonLabel, 84f, Color.white, true);
+            UiStyle.Rounded(buttonImage, winColor, 0.3f);
+            UiStyle.Shadow(button.gameObject, new Vector2(0f, -10f), 0.3f);
+            UiStyle.ButtonColors(button);
+            UiStyle.Fill(buttonLabel.rectTransform);
+            UiStyle.Text(buttonLabel, 84f, Color.white, true);
         }
 
         public void Show(bool won)
@@ -155,33 +144,6 @@ namespace PixelShooting.View
             group.DOKill();
             card.DOKill();
             if (buttonRect != null) buttonRect.DOKill();
-        }
-
-        private static void Style(Image image, Sprite sprite, Color color, float cornerScale)
-        {
-            image.sprite = sprite;
-            image.type = Image.Type.Sliced;
-            // Lower = bigger corners (the sprite's 28px radius is scaled by 1 / multiplier).
-            image.pixelsPerUnitMultiplier = cornerScale;
-            image.color = color;
-        }
-
-        private static void StyleText(TMP_Text text, float size, Color color, bool bold)
-        {
-            text.enableAutoSizing = false;
-            text.fontSize = size;
-            text.color = color;
-            text.fontStyle = bold ? FontStyles.Bold : FontStyles.Normal;
-            text.alignment = TextAlignmentOptions.Center;
-            text.enableWordWrapping = true;
-            text.raycastTarget = false;
-        }
-
-        private static void AddShadow(GameObject go, Vector2 offset, float alpha)
-        {
-            if (!go.TryGetComponent(out Shadow shadow)) shadow = go.AddComponent<Shadow>();
-            shadow.effectDistance = offset;
-            shadow.effectColor = new Color(0f, 0f, 0f, alpha);
         }
     }
 }

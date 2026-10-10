@@ -51,6 +51,7 @@ sysinfo.txt
 # Builds
 *.apk
 *.aab
+*.unitypackage
 *.unitypackage.meta
 *.app
 
@@ -72,3 +73,7 @@ Thumbs.db
 /Tools/**/bin/
 /Tools/**/obj/
 !/Tools/**/*.csproj
+
+# Local editor / AI tool settings
+.claude/settings.local.json
+*.log

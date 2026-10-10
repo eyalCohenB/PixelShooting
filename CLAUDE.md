@@ -8,6 +8,7 @@ Project context for Claude Code sessions. Keep this file updated after every com
    - **Part 1 (Scene Setup): done.**
    - **Part 2 (Core Gameplay): COMPLETE** (stages 0-8; stage 9 polish was skipped by the user on 2026-10-08).
    - **Part 3 (Bonus, Loop Animation): COMPLETE** and committed (2026-10-10).
+   - **Extras (2026-10-10):** `README.md` (architecture diagrams) and a hint button (`HintSolver`). The repo is prepared for GitHub (`*.unitypackage` ignored).
    - **The first thing to do next session:** ask the user what's next (more spec, interview prep, or the optional cleanups in `PROJECT_STATUS.md`). For new work, keep the same flow: briefly present 2-3 decisions with a recommendation, and ask "you or me?" (on day 3 the user mostly said "you do it").
    - On day 3 the user delegated more again: "you do it" for the model redesign, the tester wiring and the skateboards. Always ask "you or me?" for each step.
 3. **How the user wants to work** (updated on day 2; this overrides "Learning mode" below):
@@ -390,6 +391,16 @@ UI/
 - **Speed change:** `approach` is a fixed distance, so `HopDuration` shrinks with speed. `ConveyorView` kills a rider's hop tween once when it lands (`ShooterView.OnTrack`), so a hop that was interrupted by the speed jump doesn't fight `Sync`.
 - **Why it always wins:** bullets = cells per color. Every exposed cell has a color for which some looping shooter still has bullets, so each lap makes progress. This is checked by `LoopTests`, which plays whole random games into the finale (100% wins on Levels 2-4).
 
+## Hint button (extra, 2026-10-10; all code by Claude at the user's request)
+- **`Core/Hint/HintSolver.TryGetHint(...)`:**
+  - It searches for a winning order using **sequential laps**: one shooter rides alone and fires by the `ShootingSystem` rules. Bullets left go to the leftmost holder slot; a 6th arrival is a dead branch.
+  - **Starting state:** the live state, after riders finish their lap (from `NextPoint`) and pending taps run, in order.
+  - **Search:** depth-first, with moves sorted by immediate hits (so the first dive usually wins), identical holder shooters de-duplicated, and a node budget (50k) with a greedy fallback.
+  - **No effect on the game:** it works on `BoardModel.CopyFrom` snapshots and per-depth buffers that are kept between calls, so it allocates 0 bytes on repeat calls and takes about 0.3 ms on Level03.
+- **`Core/Hint/TapSource`** (queue column or holder slot) is also the type of the pending-tap FIFO.
+- **`GameController`:** the hint button (wired in the scene; styled by `UiStyle`, top-right) puts a pulsing ring under the suggested view (`QueueView.TopView` / `HolderView.GetView`) for `hintDuration` (4 s). Any tap clears it, and it's disabled in the finale and on the popup.
+- **Why sequential laps:** any order that wins sequentially is a valid plan for the real game, and a lap is just a walk over the firing-point list, so the search is exact and cheap.
+
 ## Animation (Part 2, stage 1, decided 2026-10-05)
 - **DOTween** handles one-off A→B animations:
   - queue shift-up
@@ -410,8 +421,8 @@ UI/
 
 ## Testing
 - **`Tools/CoreTests/`** is a .NET 10 console harness, outside `Assets/` so Unity ignores it. Run it with `dotnet run` in that folder.
-  - It compiles the Core sources directly (`Levels`, `Board`, `Queue`, `Conveyor`, `Shooting`, `Holder`) against `UnityShim.cs`, which stands in for `Color`, `Color32`, `ColorUtility` and `JsonUtility`.
-  - Suites: `LevelTests` (14 checks), `BoardTests` (17, including 42k random queries compared against brute force and 0-allocation checks), `QueueTests` (7), `ConveyorTests` (33: path, gate, two-sided gap, lap end, 20k-step random sim, 0 allocations), `ShootingTests` (11: points, lap order, blocking, lap-end cut-off, buffer overflow, Level03 sim with the bullets==cells invariant, 0 allocations), `HolderTests` (11), `Level04Tests` (plays whole games: Level04 is winnable via DFS and random tapping loses ≥1/3; it also reports Levels 1-3 never losing), `LoopTests` (10: loop wrap/speed/reset, circular-gap random sim, whole games where every finale wins).
+  - It compiles the Core sources directly (`Levels`, `Board`, `Queue`, `Conveyor`, `Shooting`, `Holder`, `Hint`) against `UnityShim.cs`, which stands in for `Color`, `Color32`, `ColorUtility` and `JsonUtility`.
+  - Suites: `LevelTests` (14 checks), `BoardTests` (17, including 42k random queries compared against brute force and 0-allocation checks), `QueueTests` (7), `ConveyorTests` (33: path, gate, two-sided gap, lap end, 20k-step random sim, 0 allocations), `ShootingTests` (11: points, lap order, blocking, lap-end cut-off, buffer overflow, Level03 sim with the bullets==cells invariant, 0 allocations), `HolderTests` (11), `Level04Tests` (plays whole games: Level04 is winnable via DFS and random tapping loses ≥1/3; it also reports Levels 1-3 never losing), `LoopTests` (10: loop wrap/speed/reset, circular-gap random sim, whole games where every finale wins), `HintTests` (9). Total: 117 checks.
   - The shim also has a minimal `Vector2` and `Mathf.Clamp`. Extend it when Core uses more of UnityEngine.
   - **When adding Core code, add a suite and add its folder to `CoreTests.csproj`.** (`.gitignore` ignores `*.csproj` but has an exception for `Tools/**`.)
 - Unity is usually open while we work, so batch mode can't run. The user tests the View in Play mode.
