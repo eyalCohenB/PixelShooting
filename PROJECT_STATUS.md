@@ -5,6 +5,15 @@ _Last updated: 2026-10-08_
 ## Current step (2026-10-08; resume here)
 **Parts 1-3 are complete.** Extras added on 2026-10-10 at the user's request: **`README.md`** (with architecture and frame diagrams) and a **hint button** (`HintSolver`). Both were play-tested and committed. The repo is being prepared for GitHub: `.gitignore` now also ignores `*.unitypackage`, and the assignment package was untracked. **Next:** wait for the user (interview prep, or the optional cleanups below; the user also considered an image→level importer).
 
+### Submission (2026-10-10)
+- **The assignment asks for:** a .unitypackage named `<your name>_unity_home_exercise`.
+- **`Assets/_Project/Editor/SubmissionExporter.cs`:**
+  - Menu **PixelShooting → Export Submission Package...**
+  - It copies `README.md` and `AI_USAGE.md` into `Assets/_Project/Docs` (git-ignored), then exports `Assets` + `ProjectSettings/TagManager.asset` (sorting layers) + `EditorBuildSettings.asset`.
+- **`Assets/_Project/Editor/SortingLayerSetup.cs`:** `[InitializeOnLoad]`. It recreates any missing sorting layers **with the original unique IDs**, because scenes reference sorting layers by ID.
+- **README:** has an "Opening the submission package" section (Unity 2022.3, the 3D Built-in template, import, open `Game.unity`, a portrait view).
+- **Verified by the user:** the package was exported and imported into a fresh project, and it works. The user is about to submit it and push to GitHub.
+
 ### Extras summary (2026-10-10; all code by Claude at the user's request)
 - **`README.md`:** for reviewers. It covers how to play, a Mermaid architecture diagram + a one-frame sequence diagram, the key systems, a performance table, the test suites (117 checks) and the levels.
 - **Hint:**

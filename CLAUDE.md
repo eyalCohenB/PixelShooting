@@ -9,6 +9,7 @@ Project context for Claude Code sessions. Keep this file updated after every com
    - **Part 2 (Core Gameplay): COMPLETE** (stages 0-8; stage 9 polish was skipped by the user on 2026-10-08).
    - **Part 3 (Bonus, Loop Animation): COMPLETE** and committed (2026-10-10).
    - **Extras (2026-10-10):** `README.md` (architecture diagrams) and a hint button (`HintSolver`). The repo is prepared for GitHub (`*.unitypackage` ignored).
+   - **Submission (2026-10-10):** **PixelShooting → Export Submission Package...** (`Assets/_Project/Editor/SubmissionExporter.cs`) builds `<name>_unity_home_exercise.unitypackage`. It includes the docs and the sorting layers; `SortingLayerSetup` recreates missing layers with the original IDs. The user verified it in a fresh project and is submitting.
    - **The first thing to do next session:** ask the user what's next (more spec, interview prep, or the optional cleanups in `PROJECT_STATUS.md`). For new work, keep the same flow: briefly present 2-3 decisions with a recommendation, and ask "you or me?" (on day 3 the user mostly said "you do it").
    - On day 3 the user delegated more again: "you do it" for the model redesign, the tester wiring and the skateboards. Always ask "you or me?" for each step.
 3. **How the user wants to work** (updated on day 2; this overrides "Learning mode" below):

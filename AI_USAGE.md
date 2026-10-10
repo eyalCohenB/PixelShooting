@@ -235,6 +235,19 @@ The assignment was built with Claude Code (Claude Opus 5.5) as a pair programmer
     - Claude then added a fallback that built the button in code. I had done the manual setup in the meantime, so I asked it to revert the fallback, and it did.
   - **GitHub prep:** Claude checked the tracked files against `.gitignore`. It ignored and untracked the 10 MB assignment `.unitypackage`, whose contents are already imported under `Assets/PackageAssets`.
 
+- **Day 4 (2026-10-10): submission package.**
+  - The assignment asks for a `.unitypackage` named `<name>_unity_home_exercise`.
+  - **Two gaps Claude flagged:**
+    - A package only carries `Assets/`. The game's sorting layers live in `ProjectSettings`, and the docs live at the repo root.
+    - Claude caught that scenes reference sorting layers **by ID**, so recreating them by name alone would still break the draw order.
+  - **What Claude wrote:**
+    - An Editor export menu that copies the docs in and also exports the sorting-layer and scene-list settings.
+    - A safety-net editor script that recreates missing layers with the original IDs.
+    - A README section on opening the package.
+  - **My part:**
+    - At first I couldn't find the package to import. It hadn't been exported yet, so Claude walked me through exporting first, then importing into a fresh project.
+    - I exported it, imported it into a fresh Built-in project, and verified that it plays.
+
 <!-- Template for each part:
 ### Part N: <title> (<date>)
 - **What I asked:**
