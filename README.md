@@ -13,6 +13,20 @@ A Unity 2022.3 puzzle game built as a home assignment. The player sends shooters
 
 ---
 
+## Opening the submission package
+
+1. Create a project in **Unity 2022.3** with the **3D (Built-in Render Pipeline)** template. The shooter shader is Built-in only, so it shows pink under URP.
+2. Import the package with `Assets > Import Package > Custom Package…`, then **Import All**. The package includes:
+   - DOTween and TextMesh Pro's essential resources
+   - the sorting layers (`Background`, `Board`, `Gameplay`, `FX`)
+
+   If your project already had other sorting layers, an editor script adds any that are missing, with the original IDs.
+3. Open `Assets/_Project/Scenes/Game.unity` and press **Play**. Use a **portrait** Game view, e.g. 1080×2340, or the Device Simulator.
+
+This README and `AI_USAGE.md` are in `Assets/_Project/Docs`. The headless test harness (`Tools/CoreTests`) lives outside `Assets/`, so it's only in the git repository.
+
+---
+
 ## How to play
 
 | Action | Result |

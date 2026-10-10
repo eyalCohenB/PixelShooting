@@ -1698,7 +1698,7 @@ MonoBehaviour:
   hopHeight: 1
   deathTime: 0.25
   hintButton: {fileID: 965435548}
-  hintLabel: {fileID: 0}
+  hintLabel: {fileID: 1847001197}
   hintDuration: 4
   hintColor: {r: 1, g: 0.76862746, b: 0.15686275, a: 1}
   loopShooterCount: 5
